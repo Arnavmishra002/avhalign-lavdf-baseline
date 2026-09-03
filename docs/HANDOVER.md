@@ -7,9 +7,9 @@ other detectors trained on the same dataset.
 
 ## 1. Where everything lives
 
-> The Kaggle notebooks below are private to the account that ran them. Anyone
-> without access can still reproduce everything from this repository; only the
-> LAV-DF dataset link is public.
+> Every Kaggle notebook and dataset below is public, so the logs, outputs and
+> cached features can be inspected directly; the repository alone is also enough
+> to reproduce the work from scratch.
 
 ### The run that produced the numbers
 

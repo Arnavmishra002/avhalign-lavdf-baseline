@@ -146,9 +146,9 @@ direction: it was trained on 45,000 clips, ours on 3,000.
   mix): `_fulltest.py` splits that work across sessions — CPU sessions for the
   preprocessing, one GPU session for scoring.
 
-Everything above can be re-run from this repository alone. The Kaggle notebooks
-that produced the numbers are private to the account that ran them, so their
-links will not open for other readers.
+Everything above can be re-run from this repository alone, and the Kaggle
+notebooks that produced the numbers are public, so their logs and outputs can be
+read directly.
 
 ## 8. Glossary
 

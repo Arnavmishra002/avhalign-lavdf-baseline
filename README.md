@@ -39,10 +39,11 @@ stopped after epoch 37, 116 minutes in a T4 x2 session. Test coverage
 > training scale (45,000 clips).
 
 Run of record: [`vansika545/notebook15b67d4dda` v5](https://www.kaggle.com/code/vansika545/notebook15b67d4dda) ·
-clean notebook: [`vansika545/avhalign-cells`](https://www.kaggle.com/code/vansika545/avhalign-cells).
-Both Kaggle notebooks are **private**, so those links only open for the account
-that owns them; everything needed to re-run the work is in this repository. The
-LAV-DF dataset itself is public.
+clean notebook: [`vansika545/avhalign-cells`](https://www.kaggle.com/code/vansika545/avhalign-cells) ·
+per-clip scoring: [`vansika545/avhalign-scores`](https://www.kaggle.com/code/vansika545/avhalign-scores) ·
+cached features: [`vansika545/avhalign-lavdf-v8-output`](https://www.kaggle.com/datasets/vansika545/avhalign-lavdf-v8-output).
+All are public, so the logs, outputs and features behind these numbers can be
+inspected directly.
 
 ## One notebook, start to finish
 
