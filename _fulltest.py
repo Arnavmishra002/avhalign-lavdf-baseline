@@ -1,3 +1,10 @@
+# Cells for the full-test-split variant of the pipeline.
+#
+# This file is not a standalone program: build_fulltest.py assembles it with
+# CELL 1 (imports), CELL 3 (helpers) and CELL 5 (environment setup) from
+# avhalign_cells.ipynb to produce avhalign_fulltest.ipynb, which is what runs.
+# Read it as the cells it becomes, not as a module.
+
 # CELL 2 - Configuration: full LAV-DF test split
 #
 # This notebook scores AVH-Align on the COMPLETE LAV-DF test split (26,100
@@ -134,6 +141,23 @@ restore_inputs()
 # so chunk boundaries are identical in every session and on every machine. No
 # sampling and no class balancing: the label mix is the dataset's own, which is
 # what makes AP comparable with published numbers.
+
+def find_lavdf_metadata(root: Path) -> Path:
+    """Locate LAV-DF's metadata.json, honouring an explicit root first and then
+    searching the attached inputs (the mount slug varies by dataset owner)."""
+    for name in ("metadata.json", "metadata.min.json"):
+        for c in [root / name, *root.glob(f"*/{name}"), *root.glob(f"*/*/{name}")]:
+            if c.is_file():
+                return c
+    inp = Path("/kaggle/input")
+    pats = [f"{d}/{n}" for n in ("metadata.json", "metadata.min.json")
+            for d in ("*", "*/*", "*/*/*", "*/*/*/*")]
+    for pat in pats:
+        for c in sorted(inp.glob(pat)):
+            if "avhalign" not in str(c).lower() and c.is_file():
+                return c
+    raise SystemExit("no LAV-DF metadata.json found under /kaggle/input")
+
 
 def build_full_test(args):
     lavdf = Path(args.lavdf_root)

@@ -47,7 +47,8 @@ Adam lr 1e-5, ReduceLROnPlateau patience 5, early stopping patience 10, 40-epoch
 cap). We train on a 3,000-clip real-only sample of the LAV-DF train split with
 300 real validation clips from the dev split, selected with a fixed seed, and
 evaluate on a sample of the LAV-DF test split. All stages run in a single
-12-hour Kaggle session on one NVIDIA T4.
+12-hour Kaggle session on one NVIDIA T4 (the session allocates T4 x2; the
+pipeline uses a single device).
 
 ## Results
 
@@ -62,17 +63,6 @@ Source: Kaggle `vansika545/notebook15b67d4dda` v5, 2 h 16 m, T4 x2. Training
 converged by early stopping: best validation loss 1.051858 at epoch 27, stopped
 after epoch 37. Test coverage 1000/1000 clips, none skipped.
 
-### Natural-prior 4,000-clip test sample
-
-Run in progress (`vansika545/avhalign-cells` v4). Fill in on completion:
-
-| model | AP | AUC | n | fake prior |
-| --- | --- | --- | --- | --- |
-| AVH-Align, retrained on 3k real LAV-DF clips | _pending_ | _pending_ | 4000 | _pending_ |
-| AVH-Align, official AV1M checkpoint (zero-shot) | _pending_ | _pending_ | 4000 | _pending_ |
-
-The retrained model here is the same checkpoint as above, reused rather than
-retrained, so the two rows differ only in test protocol.
 
 ## Detection metrics
 
@@ -207,8 +197,8 @@ output per session.
 
 | target | clips | preprocess | extract | train | sessions |
 | --- | --- | --- | --- | --- | --- |
-| full LAV-DF test split | 26,100 | ~28 h | ~1.8 h | — | ~5 |
-| all real train clips | ~25,000 | ~27 h | ~1.7 h | ~14 h | ~5-7 |
+| full LAV-DF test split | 26,100 | ~28 h | ~1.8 h | — | ~4 (3 CPU + 1 GPU) |
+| all real train clips | ~25,000 | ~27 h | ~1.7 h | ~14 h | ~6 (3 CPU + 3 GPU) |
 
 Neither fits one session. Disk is only a problem for the features — 26,100 clips
 of features are 37 GiB against a 20 GB quota, while their mouth ROIs are just

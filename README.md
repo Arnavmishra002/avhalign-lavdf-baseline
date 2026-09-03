@@ -29,8 +29,8 @@ Paired bootstrap over identical clips: **ΔAUC -0.0396** [-0.0604, -0.0188],
 p = 0.0005. Per-clip scores ship in `scores/test_scores.csv`.
 
 Training converged by early stopping: best validation loss 1.051858 at epoch 27,
-stopped after epoch 37, 116 minutes on one T4. Test coverage 1000/1000, none
-skipped.
+stopped after epoch 37, 116 minutes in a T4 x2 session. Test coverage
+1000/1000, none skipped.
 
 > The full LAV-DF test split is 26,100 clips at 6,906 real / 19,194 fake (73.5%
 > fake). Because the subsample above is balanced, **AP sits on a 0.5 base rate —
@@ -39,7 +39,24 @@ skipped.
 > training scale (45,000 clips).
 
 Run of record: [`vansika545/notebook15b67d4dda` v5](https://www.kaggle.com/code/vansika545/notebook15b67d4dda) ·
-clean notebook: [`vansika545/avhalign-cells`](https://www.kaggle.com/code/vansika545/avhalign-cells)
+clean notebook: [`vansika545/avhalign-cells`](https://www.kaggle.com/code/vansika545/avhalign-cells).
+Both Kaggle notebooks are **private**, so those links only open for the account
+that owns them; everything needed to re-run the work is in this repository. The
+LAV-DF dataset itself is public.
+
+## One notebook, start to finish
+
+`avhalign_cells.ipynb` runs the entire pipeline in a single Kaggle session with
+nothing but the LAV-DF dataset attached: it clones the upstream code, patches the
+2021 dependency stack, builds the seeded splits, cuts mouth ROIs, extracts
+AV-HuBERT features, trains the alignment head, and evaluates — ending with AP,
+AUC, EER and accuracy / precision / recall / F1 / specificity at three operating
+points, plus per-clip scores written to `scores/test_scores.csv`. About 7 hours;
+no second notebook and no manual step in between.
+
+The other notebook, `avhalign_fulltest.ipynb`, exists only for the case that does
+not fit one session: scoring all 26,100 test clips, whose 28 h of preprocessing
+must be spread across sessions.
 
 ## What's here
 
@@ -47,13 +64,14 @@ clean notebook: [`vansika545/avhalign-cells`](https://www.kaggle.com/code/vansik
 | --- | --- |
 | `avhalign_cells.ipynb` | the pipeline as 11 documented cells: setup → metadata → mouth ROIs → features → training → evaluation |
 | `_inner.py` + `build_cells.py` | source of truth; the builder splits it into the notebook's cells and re-checks it |
-| `_fulltest.py` | multi-session variant that scores the complete 26,100-clip test split |
+| `_fulltest.py` + `build_fulltest.py` → `avhalign_fulltest.ipynb` | variant that scores the complete 26,100-clip test split across sessions; shares imports / helpers / setup with the main notebook, statically verified but **not yet executed end to end** |
 | `splits/` | **the exact clip lists used** — 3,000 train, 300 val, 1,000 test with labels |
 | `score_clips.py` | per-clip scores (upstream `eval.py` prints only AP/AUC) |
 | `compare_models.py` | joins several models' scores, checks coverage, reports bootstrap CIs and paired ΔAUC |
 | `metrics_from_scores.py` | AP, AUC, EER + accuracy / precision / recall / F1 / specificity and confusion matrices at three operating points |
-| `scores/` | per-clip scores of both checkpoints on the 1,000 test clips |
+| `scores/` | per-clip scores of both checkpoints on the 1,000 test clips, written by CELL 10 of the run itself |
 | `push_kernel.py` | pushes the notebook to Kaggle and starts a run |
+| `docs/EXPLANATION.md` | plain-language walk-through of the whole project: method, engineering, results, claims |
 | `docs/HANDOVER.md` | every artifact, link and pin, plus the method in pipeline order |
 | `docs/PAPER_NOTES.md` | plain-language summary, drop-in methods paragraph, claim limits |
 | `docs/PIPELINE.md` | protocols, cell map, reproduction modes, quota notes |

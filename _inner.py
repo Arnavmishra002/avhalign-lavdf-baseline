@@ -21,6 +21,7 @@ PRE = WORK / "lavdf_pre"   # persisted in output so preprocess survives a crash
 FEATS = WORK / "lavdf_feats"
 CKPT = WORK / "checkpoints"
 STATE = WORK / "state"
+SCORES = WORK / "scores"
 
 ALL_STAGES = ["setup", "metadata", "preprocess", "extract", "train", "eval"]
 
@@ -899,7 +900,99 @@ def stage_train(args):
     mark("train")
 
 
+
 def stage_eval(args):
+
+    # because they need torch, numpy and sklearn -- which the notebook kernel
+    # deliberately never imports (CELL 1).
+
+    SCORER_SRC = r"""
+import csv, os, sys, numpy as np, torch
+from model import FusionModel
+
+meta, feats, out_csv = sys.argv[1], sys.argv[2], sys.argv[3]
+ckpts = dict(p.split("=", 1) for p in sys.argv[4:])
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+models = {}
+for name, path in ckpts.items():
+    m = FusionModel().to(device)
+    m.load_state_dict(torch.load(path, map_location=device, weights_only=False)["state_dict"])
+    m.eval()
+    models[name] = m
+
+rows = list(csv.DictReader(open(meta)))
+names = list(models)
+kept = 0
+with open(out_csv, "w", newline="") as fh:
+    w = csv.writer(fh)
+    w.writerow(["path", "label"] + [f"score_{n}" for n in names])
+    for r in rows:
+        f = os.path.join(feats, r["path"].replace(".mp4", ".npz"))
+        if not os.path.exists(f):
+            continue
+        d = np.load(f, allow_pickle=True)
+        v = torch.from_numpy(d["visual"]).to(device)
+        a = torch.from_numpy(d["audio"]).to(device)
+        v = v / torch.linalg.norm(v, ord=2, dim=-1, keepdim=True)
+        a = a / torch.linalg.norm(a, ord=2, dim=-1, keepdim=True)
+        with torch.no_grad():
+            sc = [float(torch.logsumexp(-models[n](v, a), dim=0).cpu().squeeze()) for n in names]
+        w.writerow([r["path"], r["label"]] + sc)
+        kept += 1
+print(f"scored {kept}/{len(rows)} clips -> {out_csv}")
+"""
+
+    METRICS_SRC = r"""
+import csv, sys, numpy as np
+from sklearn.metrics import (accuracy_score, average_precision_score, confusion_matrix,
+                             precision_recall_fscore_support, roc_auc_score, roc_curve)
+
+rows = sorted(csv.DictReader(open(sys.argv[1])), key=lambda r: r["path"])
+y = np.array([int(r["label"]) for r in rows])
+names = [k[6:] for k in rows[0] if k.startswith("score_")]
+S = {n: np.array([float(r["score_" + n]) for r in rows]) for n in names}
+
+rng = np.random.default_rng(0)
+idx = [rng.integers(0, len(y), len(y)) for _ in range(2000)]
+idx = [i for i in idx if 0 < y[i].sum() < len(i)]
+print(f"clips {len(y)}  real {(y == 0).sum()}  fake {y.sum()}  fake prior {y.mean():.3f}")
+
+for n in names:
+    s = S[n]
+    aps = np.array([average_precision_score(y[i], s[i]) for i in idx])
+    aucs = np.array([roc_auc_score(y[i], s[i]) for i in idx])
+    fpr, tpr, thr = roc_curve(y, s)
+    e = int(np.nanargmin(np.abs(fpr - (1 - tpr))))
+    pts = {"EER": thr[e], "Youden J": thr[int(np.argmax(tpr - fpr))]}
+    pts["max F1"] = max(((precision_recall_fscore_support(
+        y, (s >= t).astype(int), average="binary", zero_division=0)[2], t)
+        for t in np.unique(s)))[1]
+    print(f"\n=== {n} ===")
+    print(f"AP  {average_precision_score(y, s):.4f} "
+          f"[{np.percentile(aps, 2.5):.4f}, {np.percentile(aps, 97.5):.4f}]")
+    print(f"AUC {roc_auc_score(y, s):.4f} "
+          f"[{np.percentile(aucs, 2.5):.4f}, {np.percentile(aucs, 97.5):.4f}]")
+    print(f"EER {(fpr[e] + (1 - tpr[e])) / 2:.4f}")
+    print(f"{'operating point':<16}{'thr':>10}{'acc':>8}{'prec':>8}{'recall':>8}"
+          f"{'F1':>8}{'spec':>8}   confusion")
+    for lab, t in pts.items():
+        pred = (s >= t).astype(int)
+        p, r, f, _ = precision_recall_fscore_support(y, pred, average="binary", zero_division=0)
+        tn, fp, fn, tp = confusion_matrix(y, pred).ravel()
+        print(f"{lab:<16}{t:>10.4f}{accuracy_score(y, pred):>8.4f}{p:>8.4f}{r:>8.4f}"
+              f"{f:>8.4f}{tn / (tn + fp):>8.4f}   TN {tn} FP {fp} FN {fn} TP {tp}")
+
+if len(names) == 2:
+    a, b = names
+    d = np.array([roc_auc_score(y[i], S[a][i]) - roc_auc_score(y[i], S[b][i]) for i in idx])
+    obs = roc_auc_score(y, S[a]) - roc_auc_score(y, S[b])
+    pv = min(1.0, 2 * min((d <= 0).mean(), (d >= 0).mean()))
+    print(f"\npaired AUC, {a} - {b}: {obs:+.4f} "
+          f"[{np.percentile(d, 2.5):+.4f}, {np.percentile(d, 97.5):+.4f}]  "
+          f"p = {max(pv, 1 / len(d)):.4f}")
+"""
+
 
     targets = []
     mine = CKPT / f"{args.name}.pt"
@@ -937,6 +1030,25 @@ def stage_eval(args):
              "--features_path", FEATS / "val",
              "--metadata", eval_csv,
              "--dataset", "LAV-DF"], cwd=REPO, check=False)
+
+    # eval.py prints AP and AUC and nothing else, which is not enough to report
+    # recall, F1 or an operating point, and not enough to test this model against
+    # another one. So the same arithmetic is run again here, keeping one score per
+    # clip: L2-normalise both streams, run the fusion model, take
+    # logsumexp(-output). It reproduces eval.py's AP/AUC exactly, and the scores
+    # it writes are what the metric suite below and compare_models.py consume.
+    SCORES.mkdir(parents=True, exist_ok=True)
+    (REPO / "score_clips.py").write_text(SCORER_SRC)
+    (REPO / "metrics_report.py").write_text(METRICS_SRC)
+    out_csv = SCORES / "test_scores.csv"
+    run([sys.executable, "score_clips.py", eval_csv, FEATS / "val", out_csv]
+        + [f"{'retrained' if ck == mine else 'official'}={ck}" for _, ck in targets],
+        cwd=REPO, check=False)
+    if out_csv.exists():
+        log("=== metrics: AP / AUC / EER and accuracy, precision, recall, F1, "
+            "specificity at three operating points ===")
+        run([sys.executable, "metrics_report.py", out_csv], cwd=REPO, check=False)
+        log(f"per-clip scores saved to {out_csv}")
     mark("eval")
 
 
@@ -963,7 +1075,22 @@ def main():
                    help="skip installs if a previous session already built them")
     p.add_argument("--purge_preprocessed", action="store_true", default=True,
                    help="delete mouth-ROI mp4/wav after features exist (frees ~10GB)")
+    p.add_argument("--official", default="AVH-Align_AV1M",
+                   help="name of the authors' released checkpoint, if the repo ships it")
+    p.add_argument("--test_balanced", action=argparse.BooleanOptionalAction, default=True,
+                   help="balanced 50/50 test set; --no-test_balanced draws a uniform "
+                        "sample instead, so AP sits on the dataset's own class prior")
+    p.add_argument("--data_splits", default="train,test",
+                   help="which splits preprocess and extract touch")
+    p.add_argument("--resume_data", action=argparse.BooleanOptionalAction, default=True,
+                   help="reuse mouth ROIs / features found in an attached input")
     args = p.parse_args()
+
+    # The stage functions and restore_checkpoint() are shared verbatim with the
+    # notebook, where the same settings live in a module-level CFG. Binding it
+    # here keeps one copy of the code working in both contexts.
+    global CFG
+    CFG = args
 
     global DEADLINE
     DEADLINE = T0 + args.budget_hours * 3600

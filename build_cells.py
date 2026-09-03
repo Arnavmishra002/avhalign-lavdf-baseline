@@ -9,7 +9,6 @@ import ast
 import json
 import py_compile
 import re
-import sys
 import textwrap
 from pathlib import Path
 
@@ -88,6 +87,7 @@ PRE = WORK / "lavdf_pre"       # preprocessed 96x96 mouth-ROI clips (mp4 + wav)
 FEATS = WORK / "lavdf_feats"   # AV-HuBERT features (.npz per clip)
 CKPT = WORK / "checkpoints"    # trained alignment model
 STATE = WORK / "state"         # <stage>.done markers used for resume
+SCORES = WORK / "scores"       # per-clip scores written by CELL 10
 
 ALL_STAGES = ["setup", "metadata", "preprocess", "extract", "train", "eval"]
 
@@ -316,10 +316,16 @@ run_stage("train", stage_train)
 
 # --------------------------------------------------------------------------
 cell('''
-# CELL 10 - Evaluate on the Balanced Test Set
+# CELL 10 - Evaluation: AP, AUC and the full operating-point metric suite
 #
-# Runs the upstream eval.py (AUC / AP) on the 1000-clip test set for every
-# checkpoint that is available:
+# Runs the upstream eval.py (AUC / AP) on the test set for every checkpoint that
+# is available, then re-runs the identical arithmetic keeping one score per clip,
+# because AP and AUC alone cannot give recall, F1, an operating point, or a
+# significance test against another model. The per-clip scores are written to
+# /kaggle/working/scores/test_scores.csv and summarised right here, so a single
+# run of this notebook produces every number the write-up needs.
+#
+# Checkpoints evaluated:
 #   - "retrained on LAV-DF real subset": the model trained in CELL 9
 #   - "official AV1M checkpoint, zero-shot": the authors' released weights, if
 #     the repository ships them
@@ -352,7 +358,9 @@ n_te = len(list((FEATS / "val").glob("*.npz"))) if (FEATS / "val").exists() else
 print(f"Features on disk: {n_tr} train+val clips, {n_te} test clips")
 disk_report()
 print()
-print("Metrics are printed by eval.py in CELL 10.")
+print("Metrics are printed in CELL 10: AP, AUC and EER, plus accuracy,")
+print("precision, recall, F1 and specificity at three operating points, from")
+print("per-clip scores saved to /kaggle/working/scores/test_scores.csv.")
 print("Label them 'retrained-3k-subset' / 'official-checkpoint-zero-shot';")
 print("this is NOT a reproduction of the published LAV-DF numbers.")
 print("=================================")

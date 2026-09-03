@@ -1,7 +1,5 @@
 # AVH-Align on LAV-DF — single-session Kaggle reproduction
 
-> Public-facing copy of this material: https://github.com/Arnavmishra002/avhalign-lavdf-baseline (private)
-
 Runs the AVH-Align pipeline (bit-ml, CVPR 2025) end to end on a LAV-DF subset
 inside one Kaggle session: mouth-ROI preprocessing, frozen AV-HuBERT feature
 extraction, alignment-model training, and evaluation.
@@ -41,8 +39,8 @@ Two test protocols exist in this repo, and they are not interchangeable.
 
 | protocol | selection | what AP means |
 | --- | --- | --- |
-| balanced (V5, `test_balanced=True`) | 500 real + 500 fake | base rate 0.5; not comparable with published AP |
-| natural prior (default now) | uniform sample of the LAV-DF test split | unbiased estimate of full-split AP |
+| balanced — the shipped default, `test_balanced=True` | 500 real + 500 fake | base rate 0.5; not comparable with published AP |
+| natural prior, `test_balanced=False` | uniform sample of the LAV-DF test split | unbiased estimate of full-split AP |
 
 AUC is prior-independent and comparable under both. Sample size is bounded by
 the 20 GB Kaggle output quota, and the binding term is the features at
@@ -55,7 +53,7 @@ input's ROIs and features, which would otherwise pin the old clip selection.
 
 ## Notebook
 
-`avhalign_cells.ipynb` — 11 code cells, ~1070 lines, generated from `_inner.py`
+`avhalign_cells.ipynb` — 11 code cells, ~1160 lines, generated from `_inner.py`
 by `build_cells.py`. Published as `vansika545/avhalign-cells`.
 
 | cell | stage |

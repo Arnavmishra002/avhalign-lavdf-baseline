@@ -1,13 +1,15 @@
 # AVH-Align on LAV-DF — complete handover
 
-> Public-facing copy of this material: https://github.com/Arnavmishra002/avhalign-lavdf-baseline (private)
-
 Everything needed to (a) write up this baseline and (b) compare it fairly with
-the two other detectors you trained on the same dataset.
+other detectors trained on the same dataset.
 
 ---
 
 ## 1. Where everything lives
+
+> The Kaggle notebooks below are private to the account that ran them. Anyone
+> without access can still reproduce everything from this repository; only the
+> LAV-DF dataset link is public.
 
 ### The run that produced the numbers
 
@@ -24,15 +26,16 @@ the two other detectors you trained on the same dataset.
 
 | file | what it is |
 | --- | --- |
-| `avhalign_cells.ipynb` | the pipeline as 11 documented cells — the artifact to ship with the paper |
+| `avhalign_cells.ipynb` | the complete pipeline as 11 documented cells, raw video to final metrics in one session — the artifact to ship with the paper |
 | `_inner.py`, `build_cells.py` | source of truth; `build_cells.py` splits it into the notebook's cells |
-| `_fulltest.py` | multi-session variant that scores the complete 26,100-clip test split |
+| `_fulltest.py`, `build_fulltest.py`, `avhalign_fulltest.ipynb` | variant that scores the complete 26,100-clip test split across sessions. Assembled from the same imports / helpers / setup cells as the main notebook and statically verified (every cell compiles, no undefined names), but **not yet executed end to end** |
 | `splits/*.csv` | **the exact clip lists V5 used** — 3,000 train, 300 val, 1,000 test (500/500) |
 | `score_clips.py` | writes per-clip AVH-Align scores (eval.py prints only AP/AUC) |
 | `compare_models.py` | joins several models' per-clip scores and emits the comparison table |
 | `metrics_from_scores.py` | AP, AUC, EER plus accuracy / precision / recall / F1 / specificity and confusion matrices at three operating points |
 | `scores/test_scores.csv` | per-clip scores of both checkpoints on the 1,000 test clips |
 | `push_kernel.py` | pushes the notebook to Kaggle and starts a run |
+| `docs/EXPLANATION.md` | plain-language walk-through of the whole project |
 | `docs/PAPER_NOTES.md` | plain-language summary, methods paragraph, training curve, claim limits |
 | `docs/PIPELINE.md` | protocols, cell map, reproduction modes |
 
@@ -149,13 +152,13 @@ AUC is the metric to compare across papers.**
 
 ---
 
-## 5. Comparing with your other two models
+## 5. Comparing with other models
 
 Three rules make the comparison defensible, and this repo carries the pieces for
 each.
 
 **Rule 1 — identical clips.** Use `splits/test_metadata.csv`: the exact 1,000
-clips (with labels) that produced the numbers above. Score your other two models
+clips (with labels) that produced the numbers above. Score every other model
 on that list, no re-sampling. If a model cannot process a clip, drop that clip
 from *every* model, not just its own.
 
@@ -167,8 +170,11 @@ that from the features in the v8 dataset:
 ```bash
 # inside the AVH-Align checkout, features mounted
 python3 score_clips.py test_metadata.csv lavdf_feats/val avhalign_scores.csv \
-    avhalign=checkpoints/AVH-Align_LAVDF.pt official=checkpoints/AVH-Align_AV1M.pt
+    retrained=checkpoints/AVH-Align_LAVDF.pt official=checkpoints/AVH-Align_AV1M.pt
 ```
+
+AVH-Align's own scores are already in `scores/test_scores.csv`, so this only
+needs re-running for a different clip list.
 
 **Rule 3 — paired statistics.** The models see the same clips, so differences
 must be tested paired; an unpaired test discards that and overstates the
@@ -178,7 +184,8 @@ CIs, and paired bootstrap differences:
 ```bash
 python3 compare_models.py \
     --labels splits/test_metadata.csv \
-    --scores avh-align=avhalign_scores.csv model-b=modelb_scores.csv model-c=modelc_scores.csv
+    --scores 'avh-align=scores/test_scores.csv#score_retrained' \
+             model-b=modelb_scores.csv model-c=modelc_scores.csv
 ```
 
 It prints a markdown results table and a paired-difference table (ΔAUC, 95% CI,
