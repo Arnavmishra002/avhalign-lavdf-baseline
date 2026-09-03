@@ -59,6 +59,32 @@ The other notebook, `avhalign_fulltest.ipynb`, exists only for the case that doe
 not fit one session: scoring all 26,100 test clips, whose 28 h of preprocessing
 must be spread across sessions.
 
+## All links
+
+Everything behind these numbers is public and inspectable.
+
+**This work**
+
+| what | link |
+| --- | --- |
+| this repository | https://github.com/Arnavmishra002/avhalign-lavdf-baseline |
+| run of record — the reported numbers, full log and outputs (v5) | https://www.kaggle.com/code/vansika545/notebook15b67d4dda |
+| the clean 11-cell pipeline notebook | https://www.kaggle.com/code/vansika545/avhalign-cells |
+| per-clip scoring run | https://www.kaggle.com/code/vansika545/avhalign-scores |
+| cached mouth ROIs + AV-HuBERT features (skips 4.6 h of preprocessing) | https://www.kaggle.com/datasets/vansika545/avhalign-lavdf-v8-output |
+
+**Upstream**
+
+| what | link | pin |
+| --- | --- | --- |
+| AVH-Align — the method, `train.py`, `eval.py`, preprocessing and extraction | https://github.com/bit-ml/AVH-Align | default branch (CVPR 2025) |
+| AV-HuBERT — the frozen feature backbone | https://github.com/facebookresearch/av_hubert | default branch |
+| fairseq — AV-HuBERT's dependency | https://github.com/pytorch/fairseq | commit `afc77bd` |
+| AV-HuBERT Large weights (5.4 GB) | https://dl.fbaipublicfiles.com/avhubert/model/lrs3_vox/vsr/self_large_vox_433h.pt | `self_large_vox_433h` |
+| dlib 68-point landmark model (95 MiB) | http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2 | — |
+| 20-word mean-face template | https://github.com/mpc001/Lipreading_using_Temporal_Convolutional_Networks | `preprocessing/20words_mean_face.npy` |
+| LAV-DF dataset | https://www.kaggle.com/datasets/elin75/localized-audio-visual-deepfake-dataset-lav-df | 136,304 clips |
+
 ## What's here
 
 | path | purpose |
