@@ -100,14 +100,16 @@ CFG = SimpleNamespace(
     name="AVH-Align_LAVDF",
     max_train=200 if SMOKE else 3000,    # real training clips (the paper uses 45000)
     max_val=40 if SMOKE else 300,        # real validation clips (the paper uses 5000)
-    max_test=100 if SMOKE else 4000,     # test clips drawn from the LAV-DF test split
-    test_balanced=False,      # False -> uniform sample, so AP sits on LAV-DF's own
-                              # class prior and is comparable with published AP.
-                              # True  -> forced 50/50 (AP then has a 0.5 base rate).
-    data_splits="test",       # which splits to preprocess+extract: "train,test"
-                              # for a full run, "test" when the trained model is
-                              # restored from an attached input.
-    resume_data=False,        # reuse ROIs/features found in an attached input.
+    max_test=100 if SMOKE else 1000,     # test clips drawn from the LAV-DF test split
+    test_balanced=True,       # True  -> forced 50/50, the protocol behind the
+                              #          reported AP 0.7872 / AUC 0.8263.
+                              # False -> uniform sample of the test split, so AP
+                              #          sits on LAV-DF's own class prior (73.5%
+                              #          fake) and is comparable with published AP.
+    data_splits="train,test", # which splits to preprocess+extract; use "test"
+                              # alone when a trained model is restored from an
+                              # attached input and only evaluation is needed.
+    resume_data=True,         # reuse ROIs/features found in an attached input.
                               # Set False to force fresh data (e.g. a new test set)
                               # while still reusing a trained checkpoint.
     epochs=3 if SMOKE else 40,           # upper bound; early stopping usually ends sooner

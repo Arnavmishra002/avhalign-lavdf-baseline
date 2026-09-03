@@ -751,9 +751,10 @@ def stage_preprocess(args):
 
 
     PRE.mkdir(parents=True, exist_ok=True)
-    # 1.5 MiB per clip measured (6.0 GiB of mouth ROIs for 4300 clips); the old
-    # 200 kB estimate was 7x low, so the guard could not catch a real shortfall.
-    require_disk(n_clips * 1_600_000, "preprocessed mouth ROIs", PRE)
+    # 0.28 MiB per clip, read off the disk deltas of a from-scratch run (1.2 GiB
+    # of ROIs for 4300 clips; 0.25 MiB/clip on train, 0.31 on test). 400 kB per
+    # clip leaves headroom without demanding space the stage cannot use.
+    require_disk(n_clips * 400_000, "preprocessed mouth ROIs", PRE)
     # dlib runs at roughly 4 s/clip on 4 workers; refuse to start a pass that
     # cannot finish rather than burn hours and die halfway.
     require_time(n_clips * 4.0, "preprocess")

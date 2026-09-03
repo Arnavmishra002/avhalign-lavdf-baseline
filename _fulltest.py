@@ -56,10 +56,12 @@ T0 = time.time()
 DEADLINE = T0 + CFG.budget_hours * 3600
 BYTES_PER_CLIP = None
 
-# Measured on this pipeline: 3.9 s/clip preprocessing on 4 workers, 0.26 s/clip
-# extraction on a T4, 1.45 MiB of mouth ROI and 1.46 MiB of features per clip.
-SEC_PREP, SEC_EXTRACT = 3.9, 0.26
-BYTES_ROI, BYTES_FEAT = 1_520_000, 1_530_000
+# Measured on this pipeline: 3.9 s/clip preprocessing on 4 workers, 0.25 s/clip
+# extraction on a T4, 0.28 MiB of mouth ROI and 1.46 MiB of features per clip.
+# The whole test split's ROIs are only ~7 GiB, so preprocessing is bounded by
+# session time, not disk; the features are what force chunked scoring.
+SEC_PREP, SEC_EXTRACT = 3.9, 0.25
+BYTES_ROI, BYTES_FEAT = 400_000, 1_600_000
 
 print(f"MODE={MODE}  chunk={CFG.chunk}  budget={CFG.budget_hours}h")
 print("Deadline:", time.strftime("%H:%M:%S", time.localtime(DEADLINE)))

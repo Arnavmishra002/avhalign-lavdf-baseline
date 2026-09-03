@@ -28,14 +28,26 @@ def read_labels(path):
     return {r["path"]: int(r["label"]) for r in rows}
 
 
-def read_scores(path):
+def read_scores(spec):
+    """`file.csv` or `file.csv#column` -> {clip: score}.
+
+    A score file may hold several models' columns, so which column is meant has
+    to be explicit whenever the file has more than one; guessing would silently
+    compare a model against itself.
+    """
+    path, _, col = spec.partition("#")
     rows = list(csv.DictReader(open(path)))
     if not rows:
         sys.exit(f"{path} is empty")
-    col = "score" if "score" in rows[0] else next(
-        (k for k in rows[0] if k.startswith("score")), None)
-    if col is None:
-        sys.exit(f"{path} has no score column (found {list(rows[0])})")
+    cols = [k for k in rows[0] if k.startswith("score")]
+    if col:
+        if col not in rows[0]:
+            sys.exit(f"{path} has no column {col!r} (found {cols})")
+    elif len(cols) == 1:
+        col = cols[0]
+    else:
+        sys.exit(f"{path} holds {len(cols)} score columns {cols}; "
+                 f"name one as {path}#<column>")
     return {r["path"]: float(r[col]) for r in rows}
 
 
@@ -43,7 +55,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--labels", required=True)
     ap.add_argument("--scores", nargs="+", required=True,
-                    help="name=path.csv, one per model")
+                    help="name=path.csv or name=path.csv#column, one per model")
     ap.add_argument("--boot", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
@@ -52,9 +64,11 @@ def main():
     models = {}
     for spec in args.scores:
         if "=" not in spec:
-            sys.exit(f"--scores wants name=path.csv, got {spec!r}")
+            sys.exit(f"--scores wants name=path.csv[#column], got {spec!r}")
         name, path = spec.split("=", 1)
         models[name] = read_scores(path)
+    if len(models) < len(args.scores):
+        sys.exit("duplicate model names in --scores")
 
     clips = sorted(labels)
     for name, sc in models.items():
@@ -95,7 +109,7 @@ def main():
             for b in names[i + 1:]:
                 d = boot[a][1] - boot[b][1]
                 obs = roc_auc_score(y, S[a]) - roc_auc_score(y, S[b])
-                p = 2 * min((d <= 0).mean(), (d >= 0).mean())
+                p = min(1.0, 2 * min((d <= 0).mean(), (d >= 0).mean()))
                 print(f"| {a} vs {b} | {obs:+.4f} | "
                       f"[{np.percentile(d, 2.5):+.4f}, {np.percentile(d, 97.5):+.4f}] | "
                       f"{max(p, 1 / len(d)):.4f} |")

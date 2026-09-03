@@ -74,6 +74,102 @@ Run in progress (`vansika545/avhalign-cells` v4). Fill in on completion:
 The retrained model here is the same checkpoint as above, reused rather than
 retrained, so the two rows differ only in test protocol.
 
+## Detection metrics
+
+AP and AUC need no threshold and are the headline numbers. Accuracy, precision,
+recall, F1 and specificity do need an operating point, so three defensible ones
+are reported rather than one arbitrary cut. Intervals are 2,000-resample
+bootstraps over clips (seed 0). Test set: the 1,000 clips in
+`splits/test_metadata.csv`, 500 real / 500 fake.
+
+Per-clip scores are in `scores/test_scores.csv`, produced by Kaggle notebook
+`vansika545/avhalign-scores` (CPU only). That scorer reproduces the upstream
+`eval.py` numbers exactly — AP 0.7872 / AUC 0.8263 and AP 0.8272 / AUC 0.8659 —
+which is what licenses using its per-clip output for the metrics below.
+
+### AVH-Align retrained on 3,000 real LAV-DF clips
+
+AP **0.7872** [0.7456, 0.8296] · AUC **0.8263** [0.7999, 0.8508] · EER **0.2520**
+
+| operating point | threshold | accuracy | precision | recall | F1 | specificity | TN | FP | FN | TP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| EER | 5.6800 | 0.7480 | 0.7490 | 0.7460 | 0.7475 | 0.7500 | 375 | 125 | 127 | 373 |
+| Youden J | 5.5647 | 0.7580 | 0.7416 | 0.7920 | 0.7660 | 0.7240 | 362 | 138 | 104 | 396 |
+| max F1 | 5.1311 | 0.7440 | 0.6918 | 0.8800 | 0.7746 | 0.6080 | 304 | 196 | 60 | 440 |
+
+### AVH-Align official AV1M checkpoint, zero-shot
+
+AP **0.8272** [0.7882, 0.8673] · AUC **0.8659** [0.8434, 0.8878] · EER **0.2140**
+
+| operating point | threshold | accuracy | precision | recall | F1 | specificity | TN | FP | FN | TP |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| EER | -3.1790 | 0.7860 | 0.7860 | 0.7860 | 0.7860 | 0.7860 | 393 | 107 | 107 | 393 |
+| Youden J | -3.7439 | 0.7990 | 0.7488 | 0.9000 | 0.8174 | 0.6980 | 349 | 151 | 50 | 450 |
+| max F1 | -3.9645 | 0.7950 | 0.7330 | 0.9280 | 0.8191 | 0.6620 | 331 | 169 | 36 | 464 |
+
+### The two checkpoints, tested against each other
+
+Paired bootstrap on identical clips: **ΔAUC = -0.0396** [-0.0604, -0.0188],
+**p = 0.0005** (retrained minus official). The released checkpoint is better by a
+margin that is not attributable to sampling noise, which is the expected
+direction at 45,000 training clips against 3,000.
+
+Thresholds are on the raw `logsumexp(-output)` scale and are not comparable
+between checkpoints; only the metrics are.
+
+## Training curve
+
+Loss is the negative log-probability of the true (centre) audio offset within the
+31-frame window, averaged over frames. Lower is better; there is no accuracy to
+report during training because no labels are used — the model only ever sees real
+clips.
+
+| epoch | train loss | val loss |
+| ---: | ---: | ---: |
+| 1 | 2.502812 | 1.713182 |
+| 2 | 1.585880 | 1.487583 |
+| 3 | 1.441480 | 1.385080 |
+| 4 | 1.353225 | 1.318291 |
+| 5 | 1.290571 | 1.272802 |
+| 6 | 1.242882 | 1.238791 |
+| 7 | 1.203762 | 1.211809 |
+| 8 | 1.170115 | 1.189316 |
+| 9 | 1.140276 | 1.170103 |
+| 10 | 1.113355 | 1.153155 |
+| 11 | 1.088636 | 1.138458 |
+| 12 | 1.065733 | 1.125316 |
+| 13 | 1.044328 | 1.113968 |
+| 14 | 1.024200 | 1.103676 |
+| 15 | 1.005161 | 1.094504 |
+| 16 | 0.987115 | 1.086833 |
+| 17 | 0.969884 | 1.079751 |
+| 18 | 0.953440 | 1.073404 |
+| 19 | 0.937653 | 1.068268 |
+| 20 | 0.922455 | 1.063809 |
+| 21 | 0.907826 | 1.060088 |
+| 22 | 0.893709 | 1.057060 |
+| 23 | 0.880018 | 1.054715 |
+| 24 | 0.866757 | 1.053166 |
+| 25 | 0.853895 | 1.052050 |
+| 26 | 0.841343 | 1.051876 |
+| 27 | 0.829172 | 1.051858 |  ← best, evaluated checkpoint
+| 28 | 0.817321 | 1.051954 |
+| 29 | 0.805744 | 1.052968 |
+| 30 | 0.794480 | 1.054575 |
+| 31 | 0.783507 | 1.056855 |
+| 32 | 0.772745 | 1.059354 |  lr 1e-5 → 1e-6
+| 33 | 0.757291 | 1.060631 |
+| 34 | 0.753887 | 1.060556 |
+| 35 | 0.751965 | 1.060721 |
+| 36 | 0.750303 | 1.060971 |
+| 37 | 0.748751 | 1.061300 |
+
+Best validation loss **1.051858 at epoch 27**. Training continued for the full
+early-stopping patience of 10 epochs and stopped after epoch 37; the evaluated
+checkpoint is epoch 27's. Train loss keeps falling after that while validation
+loss rises slightly — mild overfitting, caught by early stopping, not by the
+session budget.
+
 ## What may and may not be claimed
 
 - Report these as **retrained-3k-subset** and **official-checkpoint-zero-shot**.
@@ -97,7 +193,7 @@ P100 silently produces zero features.
 
 | goal | inputs to attach | CFG | time |
 | --- | --- | --- | --- |
-| full pipeline from raw video | LAV-DF | defaults, `data_splits="train,test"` | ~9 h |
+| full pipeline from raw video | LAV-DF | defaults, `data_splits="train,test"` | ~7 h |
 | train only, reusing ROIs/features | LAV-DF + `vansika545/avhalign-lavdf-v8-output` | `resume_data=True` | ~2.5 h |
 | evaluate a new test set with a trained model | LAV-DF + a finished run's output | `resume_data=False`, `data_splits="test"` | ~5 h |
 
@@ -105,18 +201,21 @@ P100 silently produces zero features.
 
 Rates from our own runs: preprocessing 3.9 s per clip on 4 CPU workers, feature
 extraction 0.25 s per clip on a T4, training ~3.1 min per epoch per 3,000 train
-clips, features 1.46 MiB per clip, mouth ROIs 1.45 MiB per clip. Kaggle gives
-12 h per session and 20 GB of output per session.
+clips, features 1.46 MiB per clip, mouth ROIs 0.28 MiB per clip (read off the
+disk deltas of a from-scratch run). Kaggle gives 12 h per session and 20 GB of
+output per session.
 
 | target | clips | preprocess | extract | train | sessions |
 | --- | --- | --- | --- | --- | --- |
 | full LAV-DF test split | 26,100 | ~28 h | ~1.8 h | — | ~5 |
 | all real train clips | ~25,000 | ~27 h | ~1.7 h | ~14 h | ~5-7 |
 
-Neither fits one session, and neither fits the 20 GB output quota in one piece
-(26,100 clips of features alone are 37 GiB). Both need the same two additions:
-process the split in shards and carry only what the next stage needs, and resume
-training across sessions from a saved optimizer state.
+Neither fits one session. Disk is only a problem for the features — 26,100 clips
+of features are 37 GiB against a 20 GB quota, while their mouth ROIs are just
+7 GiB and fit comfortably. So preprocessing is limited by session *time* and can
+simply be split across sessions, whereas scoring must work in chunks that delete
+each chunk's features once its scores are written. Full-scale training would
+additionally need resume-from-checkpoint across sessions.
 
 ## Upstream
 

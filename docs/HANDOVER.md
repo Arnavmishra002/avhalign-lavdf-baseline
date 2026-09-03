@@ -1,5 +1,7 @@
 # AVH-Align on LAV-DF — complete handover
 
+> Public-facing copy of this material: https://github.com/Arnavmishra002/avhalign-lavdf-baseline (private)
+
 Everything needed to (a) write up this baseline and (b) compare it fairly with
 the two other detectors you trained on the same dataset.
 
@@ -28,9 +30,11 @@ the two other detectors you trained on the same dataset.
 | `splits/*.csv` | **the exact clip lists V5 used** — 3,000 train, 300 val, 1,000 test (500/500) |
 | `score_clips.py` | writes per-clip AVH-Align scores (eval.py prints only AP/AUC) |
 | `compare_models.py` | joins several models' per-clip scores and emits the comparison table |
+| `metrics_from_scores.py` | AP, AUC, EER plus accuracy / precision / recall / F1 / specificity and confusion matrices at three operating points |
+| `scores/test_scores.csv` | per-clip scores of both checkpoints on the 1,000 test clips |
 | `push_kernel.py` | pushes the notebook to Kaggle and starts a run |
-| `PAPER_NOTES.md` | plain-language summary, methods paragraph, claim limits |
-| `README.md` | protocols, cell map, reproduction modes |
+| `docs/PAPER_NOTES.md` | plain-language summary, methods paragraph, training curve, claim limits |
+| `docs/PIPELINE.md` | protocols, cell map, reproduction modes |
 
 ### Upstream code
 
@@ -124,6 +128,21 @@ upstream `eval.py` in the same session:
 | AVH-Align retrained on 3k real LAV-DF clips | 0.7872 | 0.8263 |
 | AVH-Align official AV1M checkpoint, zero-shot | 0.8272 | 0.8659 |
 
+
+Threshold-dependent metrics, both checkpoints, same 1,000 clips (full tables and
+confusion matrices in `docs/PAPER_NOTES.md`):
+
+| model | EER | acc @EER | recall @EER | F1 @EER | recall @maxF1 | F1 @maxF1 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| retrained on 3k real clips | 0.2520 | 0.7480 | 0.7460 | 0.7475 | 0.8800 | 0.7746 |
+| official AV1M, zero-shot | 0.2140 | 0.7860 | 0.7860 | 0.7860 | 0.9280 | 0.8191 |
+
+Paired bootstrap over the same clips: ΔAUC -0.0396 [-0.0604, -0.0188], p = 0.0005.
+
+Per-clip scores: `scores/test_scores.csv`, from Kaggle notebook
+`vansika545/avhalign-scores` (CPU only). It reproduces upstream `eval.py`'s AP
+and AUC exactly, which is why its per-clip output is trusted for the rest.
+
 Full LAV-DF test split for reference: 26,100 clips, 6,906 real / 19,194 fake
 (73.5% fake). Because our subsample is balanced, **AP is on a 0.5 base rate and
 AUC is the metric to compare across papers.**
@@ -179,7 +198,7 @@ method.
 | goal | inputs to attach | settings | time |
 | --- | --- | --- | --- |
 | repeat V5 exactly | LAV-DF + `avhalign-lavdf-v8-output` | `resume_data=True` | ~2.5 h |
-| full pipeline from raw video | LAV-DF | `data_splits="train,test"` | ~9 h |
+| full pipeline from raw video | LAV-DF | `data_splits="train,test"` | ~7 h |
 | score the full 26,100-clip test split | see `_fulltest.py` | `MODE="preprocess"` x3 on CPU, then `MODE="score"` on GPU | ~28 h CPU + 2.5 h GPU |
 
 Accelerator must be **GPU T4 x2** for anything that touches AV-HuBERT. On

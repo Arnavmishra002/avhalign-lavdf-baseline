@@ -1,5 +1,7 @@
 # AVH-Align on LAV-DF — single-session Kaggle reproduction
 
+> Public-facing copy of this material: https://github.com/Arnavmishra002/avhalign-lavdf-baseline (private)
+
 Runs the AVH-Align pipeline (bit-ml, CVPR 2025) end to end on a LAV-DF subset
 inside one Kaggle session: mouth-ROI preprocessing, frozen AV-HuBERT feature
 extraction, alignment-model training, and evaluation.
@@ -42,9 +44,9 @@ Two test protocols exist in this repo, and they are not interchangeable.
 | balanced (V5, `test_balanced=True`) | 500 real + 500 fake | base rate 0.5; not comparable with published AP |
 | natural prior (default now) | uniform sample of the LAV-DF test split | unbiased estimate of full-split AP |
 
-AUC is prior-independent and comparable under both. `max_test=4000` is the
-largest sample that fits the 20 GB Kaggle output quota alongside one split's
-mouth ROIs (~1.45 MiB/clip) and features (~1.46 MiB/clip).
+AUC is prior-independent and comparable under both. Sample size is bounded by
+the 20 GB Kaggle output quota, and the binding term is the features at
+1.46 MiB/clip; the mouth ROIs are only 0.28 MiB/clip.
 
 A natural-prior run reuses the trained model instead of retraining: attach the
 output of a completed run as a kernel input, and CELL 4 copies `<name>.pt` into
@@ -81,7 +83,7 @@ LAV-DF dataset. CELL 4 symlinks its `lavdf_pre` / `lavdf_feats`, copies the
 split CSVs, and marks metadata/preprocess/extract done only because the data is
 actually there, so the run is setup -> train -> eval.
 
-Full path (~9 h) — attach only `elin75/localized-audio-visual-deepfake-dataset-lav-df`.
+Full path (~7 h) — attach only `elin75/localized-audio-visual-deepfake-dataset-lav-df`.
 CELL 4 logs `no lavdf_pre / lavdf_feats found -> full run`.
 
 ```bash
@@ -93,10 +95,3 @@ python3 push_kernel.py                 # pushes the notebook, sets T4 x2, starts
 (1.7.4.5) predates KGAT tokens. `machineShape: "NvidiaTeslaT4"` is what pins
 T4 x2; `enableGpu` alone gets a P100.
 
-## Run history
-
-| version | outcome |
-| --- | --- |
-| `notebook15b67d4dda` v5 | complete — the results above (v8 features, T4 x2) |
-| `avhalign-cells` v2 | failed — P100 assigned, extraction produced 0/4300 features |
-| `avhalign-cells` v3 | cancelled — redundant re-training of the same features |
