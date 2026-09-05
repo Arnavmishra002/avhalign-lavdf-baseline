@@ -274,6 +274,7 @@ loss 1.5948 at epoch 30, early-stopped after epoch 40; batch 1024, Adam 1e-5, ta
 | --- | --- | --- | --- | --- |
 | AVH-Align, retrained on the 300 real clips of the shared split | 300 real | 0.8374 [0.7568, 0.9126] | 0.8751 [0.8231, 0.9229] | 0.185 |
 | AVH-Align, same, re-run (Kaggle v2; GPU training is seeded but not bitwise) | 300 real | 0.8270 [0.7418, 0.9040] | 0.8621 [0.8061, 0.9119] | 0.210 |
+| AVH-Align head trained on ALL 600 train clips, real + fake (Kaggle v3, `avh_train_all=True`; control requested by the reviewers — contradicts the method's real-only objective) | 300 real + 300 fake | 0.7615 [0.6648, 0.8503] | 0.7991 [0.7353, 0.8575] | 0.310 |
 | AVH-Align, official AV1M checkpoint (zero-shot) | 45k real (AV1M) | 0.8782 [0.8094, 0.9355] | 0.8941 [0.8468, 0.9351] | 0.205 |
 | AV-HuBERT features + linear probe (supervised, C = 0.3 on val) | 300 real + 300 fake | 0.9884 | 0.9866 | — |
 
