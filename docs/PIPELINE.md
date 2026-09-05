@@ -1,4 +1,4 @@
-# AVH-Align on LAV-DF — single-session Kaggle reproduction
+# AVH-Align on LAV-DF — single-session Kaggle run (pipeline re-implementation, scale-reduced)
 
 Runs the AVH-Align pipeline (bit-ml, CVPR 2025) end to end on a LAV-DF subset
 inside one Kaggle session: mouth-ROI preprocessing, frozen AV-HuBERT feature

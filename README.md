@@ -1,6 +1,6 @@
 # AVH-Align on LAV-DF — reproducible baseline
 
-A single-session, end-to-end reproduction of **AVH-Align** (bit-ml, CVPR 2025) on
+A single-session, end-to-end re-implementation of the **AVH-Align** pipeline (bit-ml, CVPR 2025) on
 the **LAV-DF** dataset, built as an 11-cell Kaggle notebook, together with the
 exact clip lists, per-clip scoring, and a paired-statistics harness for comparing
 it against other detectors on identical data.
