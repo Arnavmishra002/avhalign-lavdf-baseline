@@ -241,3 +241,29 @@ same footing this repository adds `protocol="shared1000"` (`_inner.py`, CELL 2/6
 - With 300 real training clips (vs 3,000 before and 45,000 in the paper) the retrained
   AVH-Align number is expected to drop; the official-checkpoint zero-shot row on the same
   200 test clips is the method's reference point.
+
+
+### Results — shared 1,000-clip protocol (run `vansika545/avhalign-shared1000-balanced` v1, 2026-09-05, 1 h 36 m, T4 x2)
+
+Split (seed 42, class-balanced): train 300 real + 300 fake, val 100 + 100, test 100 + 100 (`splits/shared1000/`).
+AVH-Align trained on the 300 real training clips (validation on the 100 real): 40-epoch cap, best validation
+loss 1.5948 at epoch 30, early-stopped after epoch 40; batch 1024, Adam 1e-5, tau 15. Test = the 200 shared clips.
+
+| model | trained on | AP [95% CI] | AUC [95% CI] | EER |
+| --- | --- | --- | --- | --- |
+| AVH-Align, retrained on the 300 real clips of the shared split | 300 real | 0.8374 [0.7568, 0.9126] | 0.8751 [0.8231, 0.9229] | 0.185 |
+| AVH-Align, official AV1M checkpoint (zero-shot) | 45k real (AV1M) | 0.8782 [0.8094, 0.9355] | 0.8941 [0.8468, 0.9351] | 0.205 |
+| AV-HuBERT features + linear probe (supervised, C = 0.3 on val) | 300 real + 300 fake | 0.9884 | 0.9866 | — |
+
+Paired bootstrap, retrained − official AUC: −0.019 [−0.064, +0.026], p = 0.43 — the 300-clip head is statistically
+indistinguishable from the released checkpoint on these 200 clips. Operating points (retrained): EER thr 5.68 →
+acc 0.815 / F1 0.814; Youden J → acc 0.825 / recall 0.85 / F1 0.829; max-F1 → recall 0.92 / F1 0.836.
+Official: Youden J → acc 0.835 / F1 0.844; max-F1 → recall 0.91 / F1 0.847.
+
+Reading the probe row: a linear classifier on frozen AV-HuBERT clip features trained WITH fake examples reaches
+AP 0.99 on this split. That is a supervised, in-distribution number (LAV-DF fakes are one generator family) and
+must be reported as a separate method, not as AVH-Align; the self-supervised rows are the method's numbers.
+Caveat: our seed-42 draw is not the reviewers' exact clip list until it is supplied via `CFG.split_file`.
+Compared with the 3,000-real run (AP 0.787 / AUC 0.826 on a different 1,000-clip test set), the 300-real head
+scores higher here because this test set is smaller and drawn from the whole dataset (all official splits);
+the two test sets are not comparable — only rows on the SAME 200 clips are.

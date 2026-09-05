@@ -181,3 +181,9 @@ Please cite the AVH-Align and LAV-DF papers for the method and the data.
 training clips, plus a supervised "AV-HuBERT features + linear probe" row that uses both
 classes (CELL 12). See `docs/PAPER_NOTES.md`, section "Shared 1,000-clip protocol".
 Pass the reviewers' exact clip list via `CFG.split_file` for identical test clips.
+
+Results on the shared 200-clip test (100 real / 100 fake): AVH-Align retrained on the 300 real training
+clips AP 0.837 / AUC 0.875; official checkpoint zero-shot AP 0.878 / AUC 0.894 (paired ΔAUC −0.019, p = 0.43);
+AV-HuBERT features + linear probe (supervised, both classes) AP 0.988 / AUC 0.987. Run:
+[`vansika545/avhalign-shared1000-balanced`](https://www.kaggle.com/code/vansika545/avhalign-shared1000-balanced).
+Details: `docs/PAPER_NOTES.md`, section "Results — shared 1,000-clip protocol".
