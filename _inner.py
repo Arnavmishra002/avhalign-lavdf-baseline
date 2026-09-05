@@ -706,20 +706,31 @@ def stage_metadata(args):
         tr_all = [r for r in chosen if r["proto"] == "train"]
         va_all = [r for r in chosen if r["proto"] == "val"]
         test = [r for r in chosen if r["proto"] == "test"]
-        train = [r for r in tr_all if r["label"] == 0]
-        val = [r for r in va_all if r["label"] == 0]
+        train_all = bool(getattr(args, "avh_train_all", False))
+        if train_all:
+            # Reviewers' request (2026-09-05): the alignment head sees every train clip, real AND fake,
+            # and early-stops on every val clip. Fake clips enter the alignment objective as if aligned.
+            train, val = list(tr_all), list(va_all)
+        else:
+            train = [r for r in tr_all if r["label"] == 0]
+            val = [r for r in va_all if r["label"] == 0]
         probe_rows = tr_all + va_all
         for name_, grp in (("train", tr_all), ("val", va_all), ("test", test)):
             nf = sum(r["label"] for r in grp)
             log(f"[protocol] {name_}: {len(grp)} clips = {len(grp) - nf} real / {nf} fake")
-        log(f"[protocol] AVH-Align trains on the {len(train)} real clips of train, validates on "
-            f"the {len(val)} real clips of val; the supervised probe uses all {len(probe_rows)}")
+        if train_all:
+            log(f"[protocol] avh_train_all=True: AVH-Align trains on ALL {len(train)} train clips "
+                f"({len(train) - sum(r['label'] for r in train)} real / {sum(r['label'] for r in train)} fake), "
+                f"validates on all {len(val)} val clips; the supervised probe uses all {len(probe_rows)}")
+        else:
+            log(f"[protocol] AVH-Align trains on the {len(train)} real clips of train, validates on "
+                f"the {len(val)} real clips of val; the supervised probe uses all {len(probe_rows)}")
         with open(META / "shared1000_split.csv", "w", newline="") as f:
             w = csv.writer(f); w.writerow(["path", "split", "label"])
             for r in chosen:
                 w.writerow([r["rel"], r["proto"], r["label"]])
         random.shuffle(test)
-        assert all(r["label"] == 0 for r in train + val)
+        assert train_all or all(r["label"] == 0 for r in train + val)
         for sub in ("train", "val"):
             (LINKS / sub).mkdir(parents=True, exist_ok=True)
     else:
@@ -762,8 +773,8 @@ def stage_metadata(args):
         test = pick(te_pool, args.max_test)
     random.shuffle(test)
 
-    assert all(r["label"] == 0 for r in train + val),\
-        "train/val contain fakes -- AVH-Align's objective requires real only"
+    assert getattr(args, "avh_train_all", False) or all(r["label"] == 0 for r in train + val),\
+        "train/val contain fakes -- AVH-Align's objective requires real only (unless avh_train_all)"
 
 
     for sub in ("train", "val"):
@@ -808,7 +819,8 @@ def stage_metadata(args):
         write_csv(META / "probe_metadata.csv", [dict(r, proto=r["proto"]) for r in probe_rows], ["path", "proto", "label"])
 
     n_fake = sum(r["label"] for r in test)
-    log(f"train={len(train)} real | val={len(val)} real | "
+    n_tf, n_vf = sum(r["label"] for r in train), sum(r["label"] for r in val)
+    log(f"train={len(train)} ({len(train)-n_tf} real / {n_tf} fake) | val={len(val)} ({len(val)-n_vf} real / {n_vf} fake) | "
         f"test={len(test)} ({len(test)-n_fake} real / {n_fake} fake)")
     log(f"total frames to featurise (train+val): {sum(r['num_frames'] for r in train+val):,}")
     mark("metadata")
@@ -1074,7 +1086,8 @@ if len(names) == 2:
     targets = []
     mine = CKPT / f"{args.name}.pt"
     if mine.exists():
-        targets.append(("retrained on LAV-DF real subset", mine))
+        targets.append(("retrained on LAV-DF train split (real + fake)" if getattr(args, "avh_train_all", False)
+                        else "retrained on LAV-DF real subset", mine))
     official = REPO / "checkpoints" / "AVH-Align_AV1M.pt"
     if official.exists():
         targets.append(("official AV1M checkpoint, zero-shot", official))
@@ -1206,6 +1219,10 @@ def main():
                         "(the audited run). shared1000: one seeded draw of n_pool clips from "
                         "the whole dataset split n_train/n_val/rest, as in the reviewers' setup")
     p.add_argument("--split_file", default="", help="CSV path,split[,label] fixing the exact clips")
+    p.add_argument("--avh_train_all", action=argparse.BooleanOptionalAction, default=False,
+                   help="shared1000: fit the AVH-Align head on ALL train clips of the split (300 real + 300 fake)\n"
+                        "                         and early-stop on all 200 val clips, instead of the real ones only.\n"
+                        "                         Deviates from the paper's real-only objective; reviewers' request.")
     p.add_argument("--n_pool", type=int, default=1000)
     p.add_argument("--n_train", type=int, default=600)
     p.add_argument("--n_val", type=int, default=200)

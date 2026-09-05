@@ -132,7 +132,12 @@ CFG = SimpleNamespace(
     n_train=600,
     n_val=200,
     balanced_splits=True,     # shared1000: each split 50/50 real/fake -> train 300 real + 300 fake,
-                              # val 100 + 100, test 100 + 100. AVH-Align trains on the 300 real.
+                              # val 100 + 100, test 100 + 100.
+    avh_train_all=False,      # shared1000: False -> AVH-Align's head is fitted on the 300 REAL train
+                              # clips only (the paper's self-supervised objective; fakes are never
+                              # "aligned" examples). True -> the head is fitted on ALL 600 train clips
+                              # (300 real + 300 fake) and early-stops on all 200 val clips, as the
+                              # reviewers asked. The probe (CELL 12) uses all 600 in both cases.
     skip_pip=False,
     purge_preprocessed=True,             # delete mouth ROIs once features exist
 )
@@ -149,6 +154,8 @@ if CFG.protocol == "shared1000":
     print(f"protocol=shared1000 balanced={CFG.balanced_splits}: {CFG.n_pool} clips -> "
           f"train {CFG.n_train} / val {CFG.n_val} / test {CFG.n_pool - CFG.n_train - CFG.n_val}"
           f" (max_train/max_val/max_test are NOT used under this protocol)")
+    print("AVH-Align head trained on: " + ("ALL train clips, real + fake (avh_train_all=True)" if CFG.avh_train_all
+                                           else "the REAL train clips only (avh_train_all=False)"))
 print(f"SMOKE={SMOKE}  max_train={CFG.max_train}  max_val={CFG.max_val}  "
       f"max_test={CFG.max_test}  epochs={CFG.epochs}  budget={CFG.budget_hours}h")
 print("Deadline:", time.strftime("%H:%M:%S", time.localtime(DEADLINE)))
@@ -270,9 +277,11 @@ cell('''
 #
 # Reads metadata.json, keeps clips with at least 31 frames, and labels a clip
 # REAL only when neither its video nor its audio was modified and n_fakes == 0.
-# AVH-Align is trained on real clips only (it learns audio-visual alignment and
-# flags deviations from it), so train and val contain real clips exclusively;
-# the test set is balanced 50/50 real/fake. Selection is seeded (CFG.seed) so
+# By default AVH-Align is trained on real clips only (it learns audio-visual
+# alignment and flags deviations from it), so train and val contain real clips
+# exclusively; with CFG.avh_train_all=True (shared1000) the head is instead fitted
+# on every train clip, real and fake, and validated on every val clip.
+# The test set is balanced 50/50 real/fake. Selection is seeded (CFG.seed) so
 # the same clips are chosen on every run. A symlink farm under lavdf_root and
 # four CSVs under lavdf_meta are produced in the layout the upstream scripts
 # expect.
@@ -323,7 +332,9 @@ cell('''
 # CELL 9 - Train the Alignment Model
 #
 # Trains AVH-Align's small fusion model (~1M parameters) on the frozen features
-# of REAL clips only, using the upstream train.py with the paper's settings
+# of the training clips listed in train_metadata.csv -- REAL clips only by
+# default, or all 300 real + 300 fake when CFG.avh_train_all=True -- using the
+# upstream train.py with the paper's settings
 # (tau=15, batch 1024, lr 1e-5, early-stopping patience 10). Training is wrapped
 # in `timeout` so it can never run past the session budget; 15 minutes are
 # reserved for evaluation. If the cap is hit, the best checkpoint saved so far
