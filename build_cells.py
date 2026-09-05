@@ -74,8 +74,13 @@ cell('''
 # crash or a session timeout -- CELL 4 shows how a later run reuses them.
 #
 # SMOKE = True  -> tiny end-to-end pilot (~2 h) to validate the pipeline.
-# SMOKE = False -> the real run: 3000 real train clips, 300 real val clips,
-#                  1000 balanced (500 real / 500 fake) test clips.
+# SMOKE = False -> the real run. The clip budget is set by CFG.protocol:
+#   "shared1000": 1,000 clips, class-balanced -> train 300 real + 300 fake,
+#                 val 100 + 100, test 100 + 100 (the shared reviewers' protocol).
+#                 AVH-Align trains on the 300 REAL train clips (it has no
+#                 supervised loss); CELL 12 adds a supervised probe on all 600.
+#   "lavdf":      the earlier audited run (3000 real train / 300 real val /
+#                 1000 balanced test from LAV-DF's own splits).
 
 WORK = Path("/kaggle/working")
 REPO = WORK / "AVH-Align"                    # bit-ml/AVH-Align (CVPR 2025)
@@ -98,9 +103,10 @@ CFG = SimpleNamespace(
     stages="all",             # comma list, or "all"; completed stages are skipped
     force="",                 # comma list of stages to re-run even if marked done
     name="AVH-Align_LAVDF",
-    max_train=200 if SMOKE else 3000,    # real training clips (the paper uses 45000)
-    max_val=40 if SMOKE else 300,        # real validation clips (the paper uses 5000)
-    max_test=100 if SMOKE else 1000,     # test clips drawn from the LAV-DF test split
+    # --- "lavdf" protocol only (ignored under "shared1000", where n_pool/n_train/n_val rule) ---
+    max_train=200 if SMOKE else 3000,    # real training clips (lavdf protocol; the paper uses 45000)
+    max_val=40 if SMOKE else 300,        # real validation clips (lavdf protocol)
+    max_test=100 if SMOKE else 1000,     # balanced test clips (lavdf protocol)
     test_balanced=True,       # True  -> forced 50/50, the protocol behind the
                               #          reported AP 0.7872 / AUC 0.8263.
                               # False -> uniform sample of the test split, so AP
