@@ -24,14 +24,16 @@ The earlier 3,000-real-clip run (AP 0.787 / AUC 0.826 on a different 1,000-clip 
 
 ---
 
-# AVH-Align on LAV-DF — reproducible baseline
+# Earlier run (legacy): 3,000 real train / 300 real val / 1,000 balanced test
+
+> Kept for provenance. Files under `legacy_3k/`. Not comparable with the shared-protocol table above (different test clips).
 
 A single-session, end-to-end re-implementation of the **AVH-Align** pipeline (bit-ml, CVPR 2025) on
 the **LAV-DF** dataset, built as an 11-cell Kaggle notebook, together with the
 exact clip lists, per-clip scoring, and a paired-statistics harness for comparing
 it against other detectors on identical data.
 
-## Results
+## Results (legacy run)
 
 Balanced 1,000-clip test subsample of the LAV-DF test split (500 real / 500 fake),
 both models scored by the authors' own `eval.py` in the same session:
@@ -118,7 +120,9 @@ Everything behind these numbers is public and inspectable.
 | `avhalign_cells.ipynb` | the pipeline as 11 documented cells: setup → metadata → mouth ROIs → features → training → evaluation |
 | `_inner.py` + `build_cells.py` | source of truth; the builder splits it into the notebook's cells and re-checks it |
 | `_fulltest.py` + `build_fulltest.py` → `avhalign_fulltest.ipynb` | variant that scores the complete 26,100-clip test split across sessions; shares imports / helpers / setup with the main notebook, statically verified but **not yet executed end to end** |
-| `splits/` | **the exact clip lists used** — 3,000 train, 300 val, 1,000 test with labels |
+| `splits/shared1000/` | **the exact clip lists of the run of record** — `shared1000_split.csv` (1,000 clips: split + label) and the per-split CSVs (train 300 real, val 100 real, test 200 with labels, probe 800 with labels) |
+| `scores/shared1000/` | per-clip scores on the 200 shared test clips: `test_scores.csv` (retrained + official), `probe_scores.csv` |
+| `legacy_3k/` | the earlier run's splits (3,000 / 300 / 1,000) and scores |
 | `score_clips.py` | per-clip scores (upstream `eval.py` prints only AP/AUC) |
 | `compare_models.py` | joins several models' scores, checks coverage, reports bootstrap CIs and paired ΔAUC |
 | `metrics_from_scores.py` | AP, AUC, EER + accuracy / precision / recall / F1 / specificity and confusion matrices at three operating points |
