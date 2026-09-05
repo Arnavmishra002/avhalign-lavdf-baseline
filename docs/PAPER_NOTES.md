@@ -213,3 +213,31 @@ additionally need resume-from-checkpoint across sessions.
 - AV-HuBERT: https://github.com/facebookresearch/av_hubert, checkpoint
   `self_large_vox_433h.pt`, fairseq pinned at `afc77bd`
 - LAV-DF (Kaggle mirror): `elin75/localized-audio-visual-deepfake-dataset-lav-df`
+
+
+## Shared 1,000-clip protocol (reviewers' setup, added 2026-09-05)
+
+The comparison paper evaluates two supervised detectors (AVoiD-DF, AuViRe) on a
+1,000-video split of 600 train / 200 validation / 200 test. To put AVH-Align on the
+same footing this repository adds `protocol="shared1000"` (`_inner.py`, CELL 2/6/12):
+
+- One seeded draw (seed 42) from the whole LAV-DF metadata, class-balanced per split:
+  **train 300 real + 300 fake, val 100 + 100, test 100 + 100** (`balanced_splits=True`).
+  `split_file` accepts the reviewers' exact clip list instead; only that makes the test
+  clips identical across methods, and the run log records which was used.
+- **AVH-Align row.** The method is self-supervised and real-only, so it is trained on
+  the 300 real training clips and validated on the 100 real validation clips; the 300
+  fake training clips are never seen by it. Everything else (features, tau, batch,
+  optimiser, early stopping) is unchanged from the audited run. Label the row
+  "AVH-Align, trained on the 300 real clips of the shared split".
+- **Supervised row.** For a row that uses both classes like the other detectors, CELL 12
+  fits a logistic-regression probe on frozen AV-HuBERT clip features (mean visual, mean
+  audio, mean |v - a|, mean and std of the per-frame cosine) using all 600 training
+  clips, chooses C on the 200 validation clips, and scores the 200 test clips. Report it
+  as "AV-HuBERT features + linear probe" — it is not AVH-Align.
+- Run: Kaggle `vansika545/avhalign-shared1000-balanced` (notebook `avhalign_shared1000.ipynb`,
+  `resume_data=False` so no artefact of the 3k run is reused; the attached v8 dataset only
+  supplies the code checkouts and the 5.4 GB AV-HuBERT checkpoint).
+- With 300 real training clips (vs 3,000 before and 45,000 in the paper) the retrained
+  AVH-Align number is expected to drop; the official-checkpoint zero-shot row on the same
+  200 test clips is the method's reference point.

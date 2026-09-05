@@ -172,3 +172,12 @@ redistribute the dataset or any model weights.
 - LAV-DF — Kaggle mirror `elin75/localized-audio-visual-deepfake-dataset-lav-df`
 
 Please cite the AVH-Align and LAV-DF papers for the method and the data.
+
+
+## Shared 1,000-clip protocol (600 / 200 / 200)
+
+`avhalign_shared1000.ipynb` runs the reviewers' protocol: a class-balanced seeded draw
+(train 300 real + 300 fake, val 100 + 100, test 100 + 100), AVH-Align trained on the real
+training clips, plus a supervised "AV-HuBERT features + linear probe" row that uses both
+classes (CELL 12). See `docs/PAPER_NOTES.md`, section "Shared 1,000-clip protocol".
+Pass the reviewers' exact clip list via `CFG.split_file` for identical test clips.
