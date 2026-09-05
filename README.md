@@ -12,6 +12,16 @@ AVH-Align is self-supervised and real-only, so its alignment head is trained on 
 | AV-HuBERT features + linear probe (supervised) | 300 real + 300 fake | 0.9884 | 0.9866 |
 
 Paired bootstrap, retrained − official AUC: −0.019 [−0.064, +0.026], p = 0.43.
+
+**Comparison with the reviewers' notebooks (same split shape, different clip draw — see `docs/COMPARISON_shared1000.md`):**
+
+| method | trained on | test AUC | acc |
+| --- | --- | --- | --- |
+| AVoiD-DF (reviewers' notebook, from scratch, 5 ep) | 300 real + 300 fake | 0.682 | 61.5 % |
+| AuViRe-inspired (reviewers' notebook, from scratch, 5 ep) | 300 real + 300 fake | 0.750 | 69.5 % |
+| **AVH-Align retrained head (ours)** | 300 real | **0.875** | 82.5 % (Youden) |
+| AVH-Align official checkpoint, zero-shot (ours) | AV1M | 0.894 | 83.5 % (Youden) |
+| AV-HuBERT features + linear probe (ours, supervised) | 300 real + 300 fake | 0.987 | — |
 Run: [`vansika545/avhalign-shared1000-balanced`](https://www.kaggle.com/code/vansika545/avhalign-shared1000-balanced)
 (v1: results above; v2: identical code with the configuration cell re-worded, re-run for the published notebook).
 Files: `splits/shared1000/` (the 1,000-clip list with split + label, and the per-split CSVs the pipeline consumed),

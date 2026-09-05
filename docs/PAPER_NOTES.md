@@ -288,3 +288,6 @@ Caveat: our seed-42 draw is not the reviewers' exact clip list until it is suppl
 Compared with the 3,000-real run (AP 0.787 / AUC 0.826 on a different 1,000-clip test set), the 300-real head
 scores higher here because this test set is smaller and drawn from the whole dataset (all official splits);
 the two test sets are not comparable — only rows on the SAME 200 clips are.
+
+
+See `docs/COMPARISON_shared1000.md` for the side-by-side table with the reviewers' AVoiD-DF and AuViRe notebooks and the five caveats that must accompany it.
