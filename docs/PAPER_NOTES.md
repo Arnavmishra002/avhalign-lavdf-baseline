@@ -1,5 +1,26 @@
 # Paper material — AVH-Align baseline on LAV-DF
 
+> **Run of record (2026-09-05): the shared 1,000-clip protocol** — the same 300 real + 300 fake / 100 + 100 /
+> 100 + 100 split shape (seed 42) as the AVoiD-DF and AuViRe comparison notebooks. Results, a drop-in methods
+> paragraph and the caveats are in the section **"Shared 1,000-clip protocol"** near the end of this file.
+> The material between here and that section describes the EARLIER 3,000-real run (files under `legacy_3k/`);
+> its numbers are on a different test set and must not be placed in the same table as the shared-protocol rows.
+
+### Methods paragraph — shared protocol (drop-in)
+
+We evaluate AVH-Align [bit-ml, CVPR 2025] on LAV-DF under the shared 1,000-clip protocol: a seeded (42),
+class-balanced draw from the full LAV-DF metadata split into 600 training (300 real, 300 fake), 200 validation
+(100/100) and 200 test clips (100/100), with no overlap. Mouth regions are extracted with the authors'
+preprocessing (dlib 68-point landmarks, 96x96 grayscale, 16 kHz audio) and per-frame representations are taken
+from a frozen AV-HuBERT Large model (self_large_vox_433h). Because AVH-Align is self-supervised and trained on
+real speech only, its alignment head is fitted on the 300 real training clips (validation: the 100 real clips)
+with the released hyper-parameters (tau 15, batch 1024, Adam 1e-5, ReduceLROnPlateau, early stopping, 40-epoch
+cap; best validation loss at epoch 30). We report the retrained head, the authors' released AV1M checkpoint
+applied zero-shot to the same 200 test clips, and — as a separate supervised reference that uses both classes
+like the compared detectors — a logistic-regression probe on frozen AV-HuBERT clip features fitted on all 600
+training clips (C chosen on validation). Metrics: AP and AUC with 2,000-resample clip bootstraps.
+
+
 Everything needed to cite this baseline in a comparison paper: what was run,
 what the numbers mean, and what may not be claimed.
 
@@ -70,9 +91,9 @@ AP and AUC need no threshold and are the headline numbers. Accuracy, precision,
 recall, F1 and specificity do need an operating point, so three defensible ones
 are reported rather than one arbitrary cut. Intervals are 2,000-resample
 bootstraps over clips (seed 0). Test set: the 1,000 clips in
-`splits/test_metadata.csv`, 500 real / 500 fake.
+`legacy_3k/splits/test_metadata.csv`, 500 real / 500 fake.
 
-Per-clip scores are in `scores/test_scores.csv`, produced by Kaggle notebook
+Per-clip scores are in `legacy_3k/scores/test_scores.csv`, produced by Kaggle notebook
 `vansika545/avhalign-scores` (CPU only). That scorer reproduces the upstream
 `eval.py` numbers exactly — AP 0.7872 / AUC 0.8263 and AP 0.8272 / AUC 0.8659 —
 which is what licenses using its per-clip output for the metrics below.

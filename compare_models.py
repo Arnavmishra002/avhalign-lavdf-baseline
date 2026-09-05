@@ -9,7 +9,7 @@ for every model pair (paired, because the models see identical clips -- an
 unpaired test would throw away that structure and overstate the uncertainty).
 
     python3 compare_models.py \
-        --labels splits/test_metadata.csv \
+        --labels splits/shared1000/test_metadata.csv \
         --scores avh-align=scores/avhalign.csv ours=scores/ours.csv third=scores/third.csv
 
 Label file: CSV with columns `path` and `label` (1 = fake, 0 = real).

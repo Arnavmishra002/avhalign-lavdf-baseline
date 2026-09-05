@@ -1,5 +1,8 @@
 # What this project is, in plain language
 
+> **Run of record (2026-09-05): the shared 1,000-clip protocol** (train 300 real + 300 fake, val 100+100, test 100+100). The walkthrough below was written for the earlier 3,000-real run; the stages are identical, only the clip selection (CELL 6, `protocol="shared1000"`) and the added supervised probe (CELL 12) differ. Old-run files live under `legacy_3k/`.
+
+
 A walk-through of the whole piece of work: what was being reproduced, how each
 step works, what had to be engineered around, what came out, and what any of it
 may be claimed to mean. No prior knowledge of the codebase assumed.
@@ -138,7 +141,7 @@ direction: it was trained on 45,000 clips, ours on 3,000.
   the notebook; about 2.5 hours.
 - To **run everything from raw video**: attach LAV-DF only; about 7 hours.
 - To **score another model against this one**: score it on
-  `splits/test_metadata.csv` — the exact clips used here — write one row per clip
+  `legacy_3k/splits/test_metadata.csv` — the exact clips used here — write one row per clip
   with a score, then run `compare_models.py`, which checks that every model saw
   every clip and reports paired bootstrap differences. `metrics_from_scores.py`
   gives the full metric suite for a single model.

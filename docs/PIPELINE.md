@@ -1,5 +1,8 @@
 # AVH-Align on LAV-DF — single-session Kaggle run (pipeline re-implementation, scale-reduced)
 
+> **Run of record (2026-09-05): the shared 1,000-clip protocol** — see README. Stage table below is unchanged except stage 6 (splits: `protocol="shared1000"` draws 300+300 / 100+100 / 100+100) and a new stage 12 (supervised probe).
+
+
 Runs the AVH-Align pipeline (bit-ml, CVPR 2025) end to end on a LAV-DF subset
 inside one Kaggle session: mouth-ROI preprocessing, frozen AV-HuBERT feature
 extraction, alignment-model training, and evaluation.

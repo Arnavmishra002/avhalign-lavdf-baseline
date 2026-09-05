@@ -52,7 +52,7 @@ confusion matrices and the max-F1 / Youden-J points are in
 | official AV1M, zero-shot | 0.2140 | 0.7860 | 0.7860 | 0.7860 | 0.7860 |
 
 Paired bootstrap over identical clips: **ΔAUC -0.0396** [-0.0604, -0.0188],
-p = 0.0005. Per-clip scores ship in `scores/test_scores.csv`.
+p = 0.0005. Per-clip scores ship in `legacy_3k/scores/test_scores.csv`.
 
 Training converged by early stopping: best validation loss 1.051858 at epoch 27,
 stopped after epoch 37, 116 minutes in a T4 x2 session. Test coverage
@@ -78,7 +78,7 @@ nothing but the LAV-DF dataset attached: it clones the upstream code, patches th
 2021 dependency stack, builds the seeded splits, cuts mouth ROIs, extracts
 AV-HuBERT features, trains the alignment head, and evaluates — ending with AP,
 AUC, EER and accuracy / precision / recall / F1 / specificity at three operating
-points, plus per-clip scores written to `scores/test_scores.csv`. About 7 hours;
+points, plus per-clip scores written to `legacy_3k/scores/test_scores.csv`. About 7 hours;
 no second notebook and no manual step in between.
 
 The other notebook, `avhalign_fulltest.ipynb`, exists only for the case that does
@@ -134,7 +134,7 @@ Everything behind these numbers is public and inspectable.
 Three rules keep a multi-model comparison defensible; this repo carries the
 pieces for each.
 
-1. **Identical clips.** Score every model on `splits/test_metadata.csv`. If a
+1. **Identical clips.** Score every model on `splits/shared1000/test_metadata.csv` (the shared 200 clips, 100 real / 100 fake). If a
    model cannot process a clip, drop it from *all* models.
 2. **Per-clip scores**, not summary metrics — a summary AP cannot support a
    significance test.
@@ -144,8 +144,8 @@ pieces for each.
    ```
 3. **Paired statistics** — the models see the same clips.
    ```bash
-   python3 compare_models.py --labels splits/test_metadata.csv \
-       --scores avh-align=scores/test_scores.csv model-b=b.csv model-c=c.csv
+   python3 compare_models.py --labels splits/shared1000/test_metadata.csv \
+       --scores avh-align=scores/shared1000/test_scores.csv#score_retrained model-b=b.csv model-c=c.csv
    ```
    Prints a markdown results table with bootstrap CIs and a paired-difference
    table (ΔAUC, 95% CI, two-sided p). For a single model's full operating-point

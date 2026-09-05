@@ -1,5 +1,8 @@
 # AVH-Align on LAV-DF — complete handover
 
+> **Run of record (2026-09-05): the shared 1,000-clip protocol** — train 300 real + 300 fake, val 100+100, test 100+100; results and files in the README and `docs/PAPER_NOTES.md` (section "Results — shared 1,000-clip protocol"). Everything below that describes 3,000 real train / 300 real val / 1,000 test is the earlier run, kept under `legacy_3k/`.
+
+
 Everything needed to (a) write up this baseline and (b) compare it fairly with
 other detectors trained on the same dataset.
 
@@ -33,7 +36,7 @@ other detectors trained on the same dataset.
 | `score_clips.py` | writes per-clip AVH-Align scores (eval.py prints only AP/AUC) |
 | `compare_models.py` | joins several models' per-clip scores and emits the comparison table |
 | `metrics_from_scores.py` | AP, AUC, EER plus accuracy / precision / recall / F1 / specificity and confusion matrices at three operating points |
-| `scores/test_scores.csv` | per-clip scores of both checkpoints on the 1,000 test clips |
+| `legacy_3k/scores/test_scores.csv` | per-clip scores of both checkpoints on the 1,000 test clips |
 | `push_kernel.py` | pushes the notebook to Kaggle and starts a run |
 | `docs/EXPLANATION.md` | plain-language walk-through of the whole project |
 | `docs/PAPER_NOTES.md` | plain-language summary, methods paragraph, training curve, claim limits |
@@ -142,7 +145,7 @@ confusion matrices in `docs/PAPER_NOTES.md`):
 
 Paired bootstrap over the same clips: ΔAUC -0.0396 [-0.0604, -0.0188], p = 0.0005.
 
-Per-clip scores: `scores/test_scores.csv`, from Kaggle notebook
+Per-clip scores: `legacy_3k/scores/test_scores.csv`, from Kaggle notebook
 `vansika545/avhalign-scores` (CPU only). It reproduces upstream `eval.py`'s AP
 and AUC exactly, which is why its per-clip output is trusted for the rest.
 
@@ -157,7 +160,7 @@ AUC is the metric to compare across papers.**
 Three rules make the comparison defensible, and this repo carries the pieces for
 each.
 
-**Rule 1 — identical clips.** Use `splits/test_metadata.csv`: the exact 1,000
+**Rule 1 — identical clips.** Use `splits/shared1000/test_metadata.csv` (the 200 shared clips); the earlier 1,000
 clips (with labels) that produced the numbers above. Score every other model
 on that list, no re-sampling. If a model cannot process a clip, drop that clip
 from *every* model, not just its own.
@@ -173,7 +176,7 @@ python3 score_clips.py test_metadata.csv lavdf_feats/val avhalign_scores.csv \
     retrained=checkpoints/AVH-Align_LAVDF.pt official=checkpoints/AVH-Align_AV1M.pt
 ```
 
-AVH-Align's own scores are already in `scores/test_scores.csv`, so this only
+AVH-Align's own scores are already in `legacy_3k/scores/test_scores.csv`, so this only
 needs re-running for a different clip list.
 
 **Rule 3 — paired statistics.** The models see the same clips, so differences
@@ -183,8 +186,8 @@ CIs, and paired bootstrap differences:
 
 ```bash
 python3 compare_models.py \
-    --labels splits/test_metadata.csv \
-    --scores 'avh-align=scores/test_scores.csv#score_retrained' \
+    --labels splits/shared1000/test_metadata.csv \
+    --scores 'avh-align=scores/shared1000/test_scores.csv#score_retrained' \
              model-b=modelb_scores.csv model-c=modelc_scores.csv
 ```
 
