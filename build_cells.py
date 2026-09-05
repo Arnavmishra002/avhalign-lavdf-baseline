@@ -125,6 +125,8 @@ CFG = SimpleNamespace(
     n_pool=1000,
     n_train=600,
     n_val=200,
+    balanced_splits=True,     # shared1000: each split 50/50 real/fake -> train 300 real + 300 fake,
+                              # val 100 + 100, test 100 + 100. AVH-Align trains on the 300 real.
     skip_pip=False,
     purge_preprocessed=True,             # delete mouth ROIs once features exist
 )

@@ -677,6 +677,22 @@ def stage_metadata(args):
                     rc = dict(rc); rc["proto"] = row["split"].strip().lower()
                     chosen.append(rc)
             log(f"[protocol] split_file {args.split_file}: {len(chosen)} clips matched")
+        elif getattr(args, "balanced_splits", True):
+            # Class-balanced draw: every split is 50/50 real/fake (train 300+300,
+            # val 100+100, test 100+100 by default). LAV-DF is 73% fake, so an
+            # unbalanced draw would leave AVH-Align only ~170 real training clips.
+            chosen = []
+            for label in (0, 1):
+                pool = sorted((r for r in recs if r["label"] == label), key=lambda r: r["rel"])
+                random.shuffle(pool)              # seeded above (args.seed)
+                n_tr, n_va = args.n_train // 2, args.n_val // 2
+                n_te = args.n_pool // 2 - n_tr - n_va
+                take = [dict(rc) for rc in pool[:n_tr + n_va + n_te]]
+                for i, rc in enumerate(take):
+                    rc["proto"] = "train" if i < n_tr else "val" if i < n_tr + n_va else "test"
+                chosen += take
+            log(f"[protocol] shared1000 balanced: seed {args.seed}, {len(chosen)} clips, each split "
+                f"50/50 real/fake (NOT the reviewers' exact clips -- pass split_file for that)")
         else:
             pool = sorted(recs, key=lambda r: r["rel"])
             random.shuffle(pool)                  # seeded above (args.seed)
@@ -1193,6 +1209,8 @@ def main():
     p.add_argument("--n_pool", type=int, default=1000)
     p.add_argument("--n_train", type=int, default=600)
     p.add_argument("--n_val", type=int, default=200)
+    p.add_argument("--balanced_splits", action=argparse.BooleanOptionalAction, default=True,
+                   help="shared1000: draw each split 50/50 real/fake (300+300 / 100+100 / 100+100)")
     p.add_argument("--skip_pip", action="store_true",
                    help="skip installs if a previous session already built them")
     p.add_argument("--purge_preprocessed", action="store_true", default=True,
