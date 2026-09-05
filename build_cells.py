@@ -139,6 +139,10 @@ BYTES_PER_CLIP = None
 
 print(f"test sampling: {'balanced 50/50' if CFG.test_balanced else 'natural prior'}"
       f" | splits processed: {CFG.data_splits} | resume_data={CFG.resume_data}")
+if CFG.protocol == "shared1000":
+    print(f"protocol=shared1000 balanced={CFG.balanced_splits}: {CFG.n_pool} clips -> "
+          f"train {CFG.n_train} / val {CFG.n_val} / test {CFG.n_pool - CFG.n_train - CFG.n_val}"
+          f" (max_train/max_val/max_test are NOT used under this protocol)")
 print(f"SMOKE={SMOKE}  max_train={CFG.max_train}  max_val={CFG.max_val}  "
       f"max_test={CFG.max_test}  epochs={CFG.epochs}  budget={CFG.budget_hours}h")
 print("Deadline:", time.strftime("%H:%M:%S", time.localtime(DEADLINE)))
