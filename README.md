@@ -1,3 +1,29 @@
+# AVH-Align on LAV-DF — shared 1,000-clip protocol (run of record)
+
+**Protocol (matches the AVoiD-DF / AuViRe comparison notebooks):** 1,000 LAV-DF clips, seed 42, class-balanced —
+**train 300 real + 300 fake, validation 100 + 100, test 100 + 100**; no overlap between splits.
+AVH-Align is self-supervised and real-only, so its alignment head is trained on the **300 real** training clips
+(validated on the 100 real); the supervised row uses all 600.
+
+| model | trained on | AP [95% CI] | AUC [95% CI] |
+| --- | --- | --- | --- |
+| AVH-Align, retrained head | 300 real | 0.8374 [0.7568, 0.9126] | 0.8751 [0.8231, 0.9229] |
+| AVH-Align, official AV1M checkpoint (zero-shot) | AV1M | 0.8782 [0.8094, 0.9355] | 0.8941 [0.8468, 0.9351] |
+| AV-HuBERT features + linear probe (supervised) | 300 real + 300 fake | 0.9884 | 0.9866 |
+
+Paired bootstrap, retrained − official AUC: −0.019 [−0.064, +0.026], p = 0.43.
+Run: [`vansika545/avhalign-shared1000-balanced`](https://www.kaggle.com/code/vansika545/avhalign-shared1000-balanced)
+(v1: results above; v2: identical code with the configuration cell re-worded, re-run for the published notebook).
+Files: `splits/shared1000/` (the 1,000-clip list with split + label, and the per-split CSVs the pipeline consumed),
+`scores/shared1000/test_scores.csv` (200 clips × retrained / official scores) and `probe_scores.csv`; every number in
+the table is recomputed from those files in `docs/AUDIT_2026-09-05.md`. Notebook: `avhalign_shared1000.ipynb`.
+The retrained checkpoint (`AVH-Align_LAVDF_shared1000.pt`, 20 MB) is in the Kaggle run output.
+
+The earlier 3,000-real-clip run (AP 0.787 / AUC 0.826 on a different 1,000-clip test set) is kept under
+`legacy_3k/` and in the sections below; its numbers are NOT comparable with the table above (different test clips).
+
+---
+
 # AVH-Align on LAV-DF — reproducible baseline
 
 A single-session, end-to-end re-implementation of the **AVH-Align** pipeline (bit-ml, CVPR 2025) on
