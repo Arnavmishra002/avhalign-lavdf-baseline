@@ -23,7 +23,7 @@ Paired bootstrap, retrained − official AUC: −0.019 [−0.064, +0.026], p = 0
 | AVH-Align official checkpoint, zero-shot (ours) | AV1M | 0.894 | 83.5 % (Youden) |
 | AV-HuBERT features + linear probe (ours, supervised) | 300 real + 300 fake | 0.987 | — |
 Run: [`vansika545/avhalign-shared1000-balanced`](https://www.kaggle.com/code/vansika545/avhalign-shared1000-balanced)
-(v1: results above; v2: identical code with the configuration cell re-worded, re-run for the published notebook).
+(v1: results above; v2 = identical code with the configuration cell re-worded, re-run for the published notebook: retrained AP 0.8270 [0.7418, 0.9040] / AUC 0.8621 [0.8061, 0.9119], EER 0.210; official and probe numbers identical to v1. The head's training is seeded but not bitwise deterministic on GPU, so re-runs move AUC by about 0.01; v3 = `avh_train_all=True`, the head fitted on all 600 train clips (300 real + 300 fake) at the reviewers' request — result pending).
 Files: `splits/shared1000/` (the 1,000-clip list with split + label, and the per-split CSVs the pipeline consumed),
 `scores/shared1000/test_scores.csv` (200 clips × retrained / official scores) and `probe_scores.csv`; every number in
 the table is recomputed from those files in `docs/AUDIT_2026-09-05.md`. Notebook: `avhalign_shared1000.ipynb`.
