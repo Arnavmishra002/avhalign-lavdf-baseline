@@ -23,7 +23,7 @@ CKPT = WORK / "checkpoints"
 STATE = WORK / "state"
 SCORES = WORK / "scores"
 
-ALL_STAGES = ["setup", "metadata", "preprocess", "extract", "train", "eval"]
+ALL_STAGES = ["setup", "metadata", "preprocess", "extract", "train", "eval", "probe"]
 
 
 def log(msg):
@@ -655,6 +655,59 @@ def stage_metadata(args):
         random.shuffle(pool)
         return pool if (n <= 0 or n >= len(pool)) else pool[:n]
 
+    probe_rows = []          # train+val clips WITH labels (both classes) for the supervised probe
+    if getattr(args, "protocol", "lavdf") == "shared1000":
+        # Reviewers' protocol: one seeded draw of n_pool clips from the WHOLE dataset
+        # (all official splits, both classes), split n_train / n_val / rest. If
+        # split_file is given (path,split[,label]) that exact list is used instead,
+        # so the clips are identical to the other methods' -- the only fair setup.
+        by_name = {}
+        for rc in recs:
+            by_name.setdefault(Path(rc["rel"]).name, rc)
+            by_name.setdefault(rc["rel"], rc)
+        if getattr(args, "split_file", ""):
+            chosen = []
+            with open(args.split_file) as f:
+                for row in csv.DictReader(f):
+                    key = row.get("path") or row.get("file") or row.get("filename")
+                    rc = by_name.get(key) or by_name.get(Path(key).name)
+                    if rc is None:
+                        log(f"[split_file] not in usable LAV-DF records (<31 frames?): {key}")
+                        continue
+                    rc = dict(rc); rc["proto"] = row["split"].strip().lower()
+                    chosen.append(rc)
+            log(f"[protocol] split_file {args.split_file}: {len(chosen)} clips matched")
+        else:
+            pool = sorted(recs, key=lambda r: r["rel"])
+            random.shuffle(pool)                  # seeded above (args.seed)
+            chosen = [dict(rc) for rc in pool[:args.n_pool]]
+            for i, rc in enumerate(chosen):
+                rc["proto"] = ("train" if i < args.n_train else
+                               "val" if i < args.n_train + args.n_val else "test")
+            log(f"[protocol] shared1000: seed {args.seed} draw of {len(chosen)} clips from "
+                f"{len(pool)} usable records (NOT necessarily the reviewers' exact clips -- "
+                f"pass split_file for that)")
+        tr_all = [r for r in chosen if r["proto"] == "train"]
+        va_all = [r for r in chosen if r["proto"] == "val"]
+        test = [r for r in chosen if r["proto"] == "test"]
+        train = [r for r in tr_all if r["label"] == 0]
+        val = [r for r in va_all if r["label"] == 0]
+        probe_rows = tr_all + va_all
+        for name_, grp in (("train", tr_all), ("val", va_all), ("test", test)):
+            nf = sum(r["label"] for r in grp)
+            log(f"[protocol] {name_}: {len(grp)} clips = {len(grp) - nf} real / {nf} fake")
+        log(f"[protocol] AVH-Align trains on the {len(train)} real clips of train, validates on "
+            f"the {len(val)} real clips of val; the supervised probe uses all {len(probe_rows)}")
+        with open(META / "shared1000_split.csv", "w", newline="") as f:
+            w = csv.writer(f); w.writerow(["path", "split", "label"])
+            for r in chosen:
+                w.writerow([r["rel"], r["proto"], r["label"]])
+        random.shuffle(test)
+        assert all(r["label"] == 0 for r in train + val)
+        for sub in ("train", "val"):
+            (LINKS / sub).mkdir(parents=True, exist_ok=True)
+    else:
+        train = val = test = None
     real = [r for r in recs if r["label"] == 0]
     tr_pool = [r for r in real if r["split"] in ("train", "")]
     va_pool = [r for r in real if r["split"] in ("dev", "val")]
@@ -664,20 +717,25 @@ def stage_metadata(args):
         random.shuffle(tr_pool)
         va_pool, tr_pool = tr_pool[:cut], tr_pool[cut:]
 
-    train = pick(tr_pool, args.max_train)
-    val = pick(va_pool, args.max_val)
+    if train is None:
+        train = pick(tr_pool, args.max_train)
+        val = pick(va_pool, args.max_val)
 
     te_pool = [r for r in recs if r["split"] == "test"]
-    if not te_pool:
+    if test is not None:
+        te_pool = []                      # protocol test set already fixed above
+    elif not te_pool:
         chosen = {r["rel"] for r in train + val}
         te_pool = [r for r in recs if r["rel"] not in chosen]
-    if args.test_balanced:
+    if test is not None:
+        pass
+    elif args.test_balanced:
         # 50/50 real/fake: convenient, but AP then sits on a 0.5 base rate and
         # cannot be compared with numbers published on the full test split.
         half = max(1, args.max_test // 2)
         test = (pick([r for r in te_pool if r["label"] == 0], half)
                 + pick([r for r in te_pool if r["label"] == 1], half))
-    else:
+    elif te_pool:
         # Uniform sample of the test split, so the class prior is the dataset's
         # own. AP is then an unbiased estimate of full-split AP; AUC is prior-
         # independent either way.
@@ -710,7 +768,8 @@ def stage_metadata(args):
             n += 1
         return n
 
-    log(f"symlinked {link(train + val, 'train')} clips -> {LINKS/'train'}")
+    extract_rows = probe_rows if probe_rows else train + val
+    log(f"symlinked {link(extract_rows, 'train')} clips -> {LINKS/'train'}")
     log(f"symlinked {link(test, 'val')} clips -> {LINKS/'val'}")
 
 
@@ -728,7 +787,9 @@ def stage_metadata(args):
 
     write_csv(META / "test_metadata.csv", test, ["path", "label"])
 
-    write_csv(META / "trainval_metadata.csv", train + val, ["path", "num_frames"])
+    write_csv(META / "trainval_metadata.csv", extract_rows, ["path", "num_frames"])
+    if probe_rows:
+        write_csv(META / "probe_metadata.csv", [dict(r, proto=r["proto"]) for r in probe_rows], ["path", "proto", "label"])
 
     n_fake = sum(r["label"] for r in test)
     log(f"train={len(train)} real | val={len(val)} real | "
@@ -1052,6 +1113,59 @@ if len(names) == 2:
     mark("eval")
 
 
+def stage_probe(args):
+    """Supervised row for the shared 600/200/200 protocol: a logistic-regression
+    probe on FROZEN AV-HuBERT clip features, trained on all train clips (real AND
+    fake), C chosen on val, scored on test. This is not AVH-Align (which has no
+    supervised loss) -- it is reported as 'AV-HuBERT features + linear probe'."""
+    if not (META / "probe_metadata.csv").exists():
+        log("[probe] no probe_metadata.csv (protocol is not shared1000) -> skipped")
+        mark("probe")
+        return
+    PROBE_SRC = r"""
+import csv, os, sys, numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import average_precision_score, roc_auc_score
+meta, feats_tr, test_meta, feats_te, out_csv = sys.argv[1:6]
+
+def vec(path):
+    d = np.load(path, allow_pickle=True); v = d["visual"].astype(np.float32); a = d["audio"].astype(np.float32)
+    v /= np.linalg.norm(v, axis=-1, keepdims=True) + 1e-8; a /= np.linalg.norm(a, axis=-1, keepdims=True) + 1e-8
+    n = min(len(v), len(a)); v, a = v[:n], a[:n]
+    return np.concatenate([v.mean(0), a.mean(0), np.abs(v - a).mean(0), (v * a).sum(-1).mean(keepdims=True), (v * a).sum(-1).std(keepdims=True)])
+
+def load(meta_csv, feats, split_filter=None):
+    X, y, P = [], [], []
+    for r in csv.DictReader(open(meta_csv)):
+        if split_filter and r.get("proto") != split_filter: continue
+        f = os.path.join(feats, r["path"].replace(".mp4", ".npz"))
+        if not os.path.exists(f): continue
+        X.append(vec(f)); y.append(int(r["label"])); P.append(r["path"])
+    return np.array(X), np.array(y), P
+
+Xtr, ytr, _ = load(meta, feats_tr, "train"); Xva, yva, _ = load(meta, feats_tr, "val"); Xte, yte, Pte = load(test_meta, feats_te)
+print(f"probe: train {len(ytr)} ({ytr.sum()} fake) val {len(yva)} ({yva.sum()} fake) test {len(yte)} ({yte.sum()} fake)")
+sc = StandardScaler().fit(Xtr); best = None
+for C in (0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0):
+    clf = LogisticRegression(C=C, max_iter=5000).fit(sc.transform(Xtr), ytr)
+    ap = average_precision_score(yva, clf.decision_function(sc.transform(Xva)))
+    print(f"  C={C:<6} val AP {ap:.4f}")
+    if best is None or ap > best[0]: best = (ap, C, clf)
+ap, C, clf = best; s = clf.decision_function(sc.transform(Xte))
+print(f"=== AV-HuBERT features + linear probe (C={C}, chosen on val) ===")
+print(f"test AP {average_precision_score(yte, s):.4f}  AUC {roc_auc_score(yte, s):.4f}")
+with open(out_csv, "w", newline="") as fh:
+    w = csv.writer(fh); w.writerow(["path", "label", "score_probe"])
+    for p, l, v in zip(Pte, yte, s): w.writerow([p, l, v])
+"""
+    (REPO / "probe_clips.py").write_text(PROBE_SRC)
+    SCORES.mkdir(parents=True, exist_ok=True)
+    run([sys.executable, "probe_clips.py", META / "probe_metadata.csv", FEATS / "train",
+         META / "test_metadata.csv", FEATS / "val", SCORES / "probe_scores.csv"], cwd=REPO, check=False)
+    mark("probe")
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--lavdf_root",
@@ -1071,6 +1185,14 @@ def main():
                    help="wall-clock budget. Kaggle kills the session at 12h; this\n                         leaves margin to stop cleanly and save state.")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--protocol", default="lavdf", choices=["lavdf", "shared1000"],
+                   help="lavdf: real-only train/val from the official splits, balanced test "
+                        "(the audited run). shared1000: one seeded draw of n_pool clips from "
+                        "the whole dataset split n_train/n_val/rest, as in the reviewers' setup")
+    p.add_argument("--split_file", default="", help="CSV path,split[,label] fixing the exact clips")
+    p.add_argument("--n_pool", type=int, default=1000)
+    p.add_argument("--n_train", type=int, default=600)
+    p.add_argument("--n_val", type=int, default=200)
     p.add_argument("--skip_pip", action="store_true",
                    help="skip installs if a previous session already built them")
     p.add_argument("--purge_preprocessed", action="store_true", default=True,
@@ -1107,7 +1229,7 @@ def main():
 
     fns = {"setup": stage_setup, "metadata": stage_metadata,
            "preprocess": stage_preprocess, "extract": stage_extract,
-           "train": stage_train, "eval": stage_eval}
+           "train": stage_train, "eval": stage_eval, "probe": stage_probe}
 
     for s in stages:
         if s not in fns:

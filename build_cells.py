@@ -89,7 +89,7 @@ CKPT = WORK / "checkpoints"    # trained alignment model
 STATE = WORK / "state"         # <stage>.done markers used for resume
 SCORES = WORK / "scores"       # per-clip scores written by CELL 10
 
-ALL_STAGES = ["setup", "metadata", "preprocess", "extract", "train", "eval"]
+ALL_STAGES = ["setup", "metadata", "preprocess", "extract", "train", "eval", "probe"]
 
 SMOKE = False
 
@@ -116,6 +116,15 @@ CFG = SimpleNamespace(
     budget_hours=2.0 if SMOKE else 11.0, # Kaggle kills the session at 12 h
     workers=4,
     seed=42,
+    protocol="lavdf",         # "lavdf" (audited run) or "shared1000": one seeded draw of
+                              # n_pool clips from the whole dataset, split n_train/n_val/
+                              # rest -- the reviewers' 1000-video 600/200/200 setup.
+                              # AVH-Align still trains on the REAL clips of that split
+                              # (it has no supervised loss); CELL 12 adds a supervised probe.
+    split_file="",            # CSV path,split[,label] with the reviewers' exact clips
+    n_pool=1000,
+    n_train=600,
+    n_val=200,
     skip_pip=False,
     purge_preprocessed=True,             # delete mouth ROIs once features exist
 )
@@ -339,6 +348,23 @@ cell('''
 
 
 run_stage("eval", stage_eval)
+''')
+
+# --------------------------------------------------------------------------
+cell('''
+# CELL 12 - Supervised Probe (shared 600/200/200 protocol only)
+#
+# AVH-Align is self-supervised and real-only, so it cannot "train on fakes".
+# To give the comparison a row that uses both classes exactly like the
+# supervised detectors, this cell fits a logistic-regression probe on the FROZEN
+# AV-HuBERT clip features of every train clip (real and fake), picks C on val,
+# and scores the same test clips. Report it as "AV-HuBERT features + linear
+# probe", never as AVH-Align. Skipped automatically under the lavdf protocol.
+
+''' + fn("stage_probe") + '''
+
+
+run_stage("probe", stage_probe)
 ''')
 
 # --------------------------------------------------------------------------
